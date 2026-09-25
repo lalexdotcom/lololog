@@ -50,11 +50,17 @@
 		"lint": "biome check",
 		"lint:package": "publint && attw --pack . --profile esm-only",
 		"test": "rstest run",
-		"test:consumers": "tsx scripts/test-consumers.ts"
+		"test:consumers": "tsx scripts/test-consumers.ts",
+		"playground:tty": "tsx scripts/playground/tty.ts",
+		"playground:no-tty": "tsx scripts/playground/no-tty.ts",
+		"playground:json": "tsx scripts/playground/json.ts",
+		"playground:logfmt": "tsx scripts/playground/logfmt.ts",
+		"playground:web": "rsbuild dev -r scripts/playground/web"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.5",
 		"@biomejs/biome": "^2.5.11",
+		"@rsbuild/core": "^2.2.9",
 		"@rslib/core": "^1.0.2",
 		"@rstest/browser": "^0.12.1",
 		"@rstest/core": "^0.12.1",
