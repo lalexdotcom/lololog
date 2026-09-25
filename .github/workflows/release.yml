@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "v*.*.*-*"
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      # npm provenance signs with the job's OIDC token.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Extract the release notes from CHANGELOG.md
+        id: notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          notes="$RUNNER_TEMP/release-notes.md"
+          # index(), not a regex: the dots of the version must match literally, and
+          # "## [1.0.0]" must not match the tag v1.0.0-beta.1.
+          awk -v v="$version" '
+            /^## \[/ { if (found) exit; found = index($0, "## [" v "]") == 1; next }
+            found { print }
+          ' CHANGELOG.md > "$notes"
+          if ! grep -q '[^[:space:]]' "$notes"; then
+            echo "::error file=CHANGELOG.md::No non-empty \"## [$version]\" section"
+            exit 1
+          fi
+          echo "file=$notes" >> "$GITHUB_OUTPUT"
+      - uses: lalexdotcom/action-release-and-publish@v3
+        with:
+          publish: true
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          release-notes-file: ${{ steps.notes.outputs.file }}
+          node-version: lts/*
