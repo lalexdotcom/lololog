@@ -14,3 +14,5 @@ devcontainer.
 | `pnpm test` | rstest, projects `node` and `browser` |
 | `pnpm test:consumers [fixture...]` | builds, packs, runs the consumer fixtures |
 | `actionlint` | lints `.github/workflows/` |
+| `pnpm playground:tty` / `:no-tty` / `:json` / `:logfmt` | runs `scripts/playground/demo.ts` against `src/` in that output (no-tty re-runs itself with piped stdout per format) |
+| `pnpm playground:web` | rsbuild dev server on `0.0.0.0:3000` for `scripts/playground/web`, importing `src/` directly (HMR on src edits) |

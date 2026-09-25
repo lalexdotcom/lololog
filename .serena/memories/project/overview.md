@@ -5,6 +5,11 @@ Universal TypeScript logger for browser and Node.js. npm description:
 goals drive every design choice: low overhead and a pleasant look.
 
 - ESM only (no CJS, no UMD); Node >= 22.3.0.
+- Public API (`src/index.ts`): `L` and `logger` (same root), `LEVELS`, and
+  the types `Level`, `Format`, `Logger`, `RootLogger`. Nothing else is
+  exported; the environment flags and `describeRuntime` (exported by
+  0.0.1-alpha.0) are internal or gone. Architecture and decisions:
+  `mem:project/logger`.
 - One bundle for every environment. `src/env/detect.ts` exports module-level
   flags `isNode`, `isMainBrowser`, `isWebWorker`, `isBrowser`, computed once at
   load; they are not exclusive (jsdom and Electron renderers are both Node and
