@@ -14,6 +14,9 @@
   overrides `superpowers:finishing-a-development-branch`, whose plain
   `git merge` fast-forwards when it can.
 - After the merge: update these Serena memories to match what shipped.
+- During a dedicated documentation pass, do not commit each edit: wording and
+  verbosity usually take several back-and-forths. Commit once the user
+  validates the pass.
 - Throwaway code (spikes, probes, one-off experiments) goes in `.scratchpad/`
   at the repo root, git-ignored, never in `src/`, `tests/` or `scripts/`.
 - When the user says the session is running out of tokens: persist everything
