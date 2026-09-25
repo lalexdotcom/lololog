@@ -1,6 +1,8 @@
 import type { Style } from "./style/ansi";
 
-export const LEVELS = {
+// Frozen: a runtime mutation here would desync the level setter's threshold
+// and the json `severity` field from the severities bound into level methods at load.
+export const LEVELS = Object.freeze({
 	wth: 1,
 	debug: 5,
 	verb: 8,
@@ -12,7 +14,7 @@ export const LEVELS = {
 	crit: 20,
 	alert: 22,
 	emerg: 24,
-} as const;
+} as const);
 
 export type Level = keyof typeof LEVELS;
 

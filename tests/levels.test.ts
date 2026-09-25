@@ -22,6 +22,10 @@ describe("LEVELS", () => {
 		const severities = LEVEL_NAMES.map((level) => LEVELS[level]);
 		expect(severities).toEqual([...severities].sort((a, b) => a - b));
 	});
+
+	test("is frozen", () => {
+		expect(Object.isFrozen(LEVELS)).toBe(true);
+	});
 });
 
 describe("LEVEL_STYLES", () => {
