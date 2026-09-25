@@ -15,3 +15,8 @@
 - Adding a fixture means adding it to both `scripts/test-consumers.ts` and the
   `consumers` matrix of `.github/workflows/ci.yml`. Add one when a new
   consumer toolchain or a new `exports` entry needs proving.
+- Fixture dependencies (webpack, vite, rsbuild, rspack) are deliberately
+  unpinned (`^` ranges, no lockfile), so CI tests against the latest releases
+  consumers would install; the cost is a new bundler warning can fail CI with
+  no repo change. When that happens, investigate the new warning and pin the
+  dependency only if it turns out to be a bundler bug.
