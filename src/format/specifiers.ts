@@ -10,13 +10,26 @@ function convert(specifier: string, arg: unknown): string {
 		case "s":
 			if (typeof arg === "function") return `[Function: ${arg.name || "anonymous"}]`;
 			return typeof arg === "object" && arg !== null ? serialize(arg) : String(arg);
-		// Number() throws on a symbol; util.format prints NaN.
+		// Number()/String() throw on a symbol, on Object.create(null), or on an object whose
+		// valueOf/toString throws; util.format prints NaN for all of those.
 		case "d":
-			return typeof arg === "symbol" ? "NaN" : String(Number(arg));
+			try {
+				return typeof arg === "symbol" ? "NaN" : String(Number(arg));
+			} catch {
+				return "NaN";
+			}
 		case "i":
-			return typeof arg === "symbol" ? "NaN" : String(Number.parseInt(String(arg), 10));
+			try {
+				return typeof arg === "symbol" ? "NaN" : String(Number.parseInt(String(arg), 10));
+			} catch {
+				return "NaN";
+			}
 		case "f":
-			return typeof arg === "symbol" ? "NaN" : String(Number.parseFloat(String(arg)));
+			try {
+				return typeof arg === "symbol" ? "NaN" : String(Number.parseFloat(String(arg)));
+			} catch {
+				return "NaN";
+			}
 		case "c":
 			return "";
 		default:

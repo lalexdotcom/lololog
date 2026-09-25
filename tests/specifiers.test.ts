@@ -37,6 +37,20 @@ describe("formatMessage: specifiers", () => {
 		expect(formatMessage(["%s %d", Symbol("x"), Symbol("y")]).msg).toBe("Symbol(x) NaN");
 	});
 
+	test("never throw on objects that refuse conversion", () => {
+		const hostile = {
+			valueOf() {
+				throw new Error("no");
+			},
+			toString() {
+				throw new Error("no");
+			},
+		};
+		expect(formatMessage(["%d %i %f", Object.create(null), hostile, hostile]).msg).toBe(
+			"NaN NaN NaN",
+		);
+	});
+
 	test("name a function instead of printing its source", () => {
 		expect(formatMessage(["%s", function handler() {}]).msg).toBe("[Function: handler]");
 	});
