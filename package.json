@@ -1,5 +1,5 @@
 {
-    "name": "<project_name>",
+    "name": "lololog",
     "version": "0.0.1",
     "description": "To be replaced by the description of the project",
     "author": {
@@ -13,5 +13,5 @@
         "tsx": "^4.23.13",
         "typescript": "^7.0.2"
     },
-    "dependencies": {}
+    "packageManager": "pnpm@12.6.0"
 }
