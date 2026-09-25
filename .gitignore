@@ -19,6 +19,9 @@ __pycache__/
 # Ledger and review packages of an in-flight plan; the git history is the record.
 .superpowers/
 
+# Throwaway code and session handoffs; anything durable goes to Serena memories.
+.scratchpad/
+
 # Per-project files `mempalace init` regenerates on every container build. Listed
 # here so init finds them and does not append its own block to this file.
 mempalace.yaml

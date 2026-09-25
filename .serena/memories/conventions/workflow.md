@@ -14,3 +14,12 @@
   overrides `superpowers:finishing-a-development-branch`, whose plain
   `git merge` fast-forwards when it can.
 - After the merge: update these Serena memories to match what shipped.
+- Throwaway code (spikes, probes, one-off experiments) goes in `.scratchpad/`
+  at the repo root, git-ignored, never in `src/`, `tests/` or `scripts/`.
+- When the user says the session is running out of tokens: persist everything
+  worth keeping (current task, state, decisions, next steps, open questions)
+  in a throwaway `.scratchpad/handoff.md`, then give the user the command
+  that resumes in a fresh session:
+  `claude "Read .scratchpad/handoff.md, resume from it, then delete it"`.
+  The next session deletes the handoff once read; anything durable belongs in
+  these memories, not in the handoff.
