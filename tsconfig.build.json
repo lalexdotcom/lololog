@@ -1,0 +1,11 @@
+{
+	// src/ alone, without Node types: @rstest/core's declarations pull @types/node
+	// into any program that includes tests/, which would let a Node global in src/
+	// typecheck. Also roots the rslib .d.ts output at dist/ instead of dist/src/.
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"rootDir": "src",
+		"types": []
+	},
+	"include": ["src"]
+}

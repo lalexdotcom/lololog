@@ -7,8 +7,15 @@
 		"url": "https://github.com/lalexdotcom"
 	},
 	"license": "MIT",
+	"scripts": {
+		"typecheck": "tsc --noEmit -p tsconfig.build.json && tsc --noEmit",
+		"test": "rstest run"
+	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.11",
+		"@rstest/browser": "^0.12.1",
+		"@rstest/core": "^0.12.1",
+		"@types/node": "^22.20.4",
 		"playwright": "^1.62.1",
 		"tsx": "^4.23.13",
 		"typescript": "^7.0.2"
