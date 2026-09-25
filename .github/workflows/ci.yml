@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec biome ci
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm lint:package
+      - run: pnpm pack --pack-destination "$RUNNER_TEMP/package"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package
+          path: ${{ runner.temp }}/package/*.tgz
+          if-no-files-found: error
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec rstest run --project node
+      # The browser result does not depend on the Node version running the tests.
+      - if: matrix.node == 24
+        run: pnpm exec playwright install --with-deps chromium
+      - if: matrix.node == 24
+        run: pnpm exec rstest run --project browser
+
+  consumers:
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Mirrored by the fixture list in scripts/test-consumers.ts.
+      matrix:
+        include:
+          - fixture: node
+            browser: false
+          - fixture: rsbuild
+            browser: true
+          - fixture: rspack
+            browser: true
+          - fixture: webpack
+            browser: true
+          - fixture: vite
+            browser: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      # The repo's own install only provides Playwright for the browser harness.
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: package
+          path: ${{ runner.temp }}/package
+      - name: Install the packed package into the fixture
+        env:
+          FIXTURE: ${{ matrix.fixture }}
+        run: |
+          work="$RUNNER_TEMP/consumer"
+          cp -R "tests/consumers/$FIXTURE" "$work"
+          cd "$work"
+          npm install --no-audit --no-fund
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/package/*.tgz
+      - run: npm run check
+        working-directory: ${{ runner.temp }}/consumer
+      - if: matrix.browser
+        run: pnpm exec playwright install --with-deps chromium
+      - if: matrix.browser
+        run: node tests/consumers/run-in-browser.mjs "$RUNNER_TEMP/consumer/dist" browser
