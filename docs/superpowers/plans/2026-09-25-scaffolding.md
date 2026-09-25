@@ -22,7 +22,7 @@
 - Comments say why, never what (AGENTS.md § Comments). Keep the ones given in this plan; add none that restate code.
 - Code files are read and edited through Serena's symbolic tools (`get_symbols_overview`, `find_symbol`, `replace_symbol_body`, `replace_content`, …); built-in Read/Edit only for non-code files (JSON, YAML, Markdown) or when Serena fails. New files may be created with Write.
 - Commits: Conventional Commits, body explains why, ending with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Never bump the version, tag or push.
-- Work happens on branch `feat/scaffolding` (already checked out).
+- Work happens on branch `feat/scaffolding` (already checked out), in the main checkout. Never create or use a git worktree: it disrupts the tooling, Serena first.
 
 ## Review Focus
 
@@ -1362,6 +1362,8 @@ devcontainer.
 
 - Every piece of work happens on a feat-branch, opened before its spec is
   committed; the spec is committed on that branch.
+- Never work in a git worktree: it disrupts the tooling, Serena first (its
+  project, index and memories are bound to the main checkout).
 - Implementation runs in subagent mode by default
   (`superpowers:subagent-driven-development`); inline only on request.
 - Before delivering a branch: `pnpm exec biome ci`, `pnpm typecheck`,

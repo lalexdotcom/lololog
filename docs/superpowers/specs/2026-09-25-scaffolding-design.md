@@ -254,7 +254,7 @@ rather than intent. Nothing already stated in AGENTS.md is repeated.
 | `project/overview` | Universal logger; product goals: low overhead and a pleasant look. ESM only, Node ≥ 22.3, runtime detection, single `node:*` helper on `process.getBuiltinModule` and why not `import()` |
 | `project/stack` | pnpm, Biome, TypeScript 7, rslib, rstest + `@rstest/browser`, publint, attw, tsx, actionlint + ShellCheck (devcontainer); commands |
 | `conventions/code-style` | Relative extensionless imports, no aliases |
-| `conventions/workflow` | Every piece of work on a feat-branch, opened before the spec is committed; implementation in subagent mode by default (`superpowers:subagent-driven-development`), inline only on request; before delivery `biome ci`, `typecheck`, `test`, `build` green; after the merge, Serena memories updated |
+| `conventions/workflow` | Every piece of work on a feat-branch, opened before the spec is committed; never in a git worktree (it disrupts the tooling, Serena first); implementation in subagent mode by default (`superpowers:subagent-driven-development`), inline only on request; before delivery `biome ci`, `typecheck`, `test`, `build` green; after the merge, Serena memories updated |
 | `conventions/testing` | `tests/` sibling of `src/`, node and browser projects, consumer fixtures and when to add one |
 | `conventions/changelog` | `[Unreleased]` entry in the same commit, format, delivery preparation |
 | `conventions/release` | Bump, tag and push by the user only via `npx upversion`; `release.yml` behaviour; `NPM_TOKEN` |
