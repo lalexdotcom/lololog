@@ -30,8 +30,8 @@ real to build, test and consume.
 | Topic | Decision |
 |---|---|
 | Output format | ESM only, with `.d.ts` |
-| Node floor | `>=22`; CI on Node 22 and 24; release on `lts/*` |
-| Environment strategy | Single build, runtime detection, dynamic `node:*` imports |
+| Node floor | `>=22.3.0` (`process.getBuiltinModule`); CI on Node 22 and 24; release on `lts/*` |
+| Environment strategy | Single build, runtime detection, `node:*` built-ins through `process.getBuiltinModule` |
 | Unit tests | Rstest, two projects: `node` and `browser` (Playwright Chromium) |
 | Consumer tests | Packed tarball installed with npm into fixture projects |
 | Changelog | Keep a Changelog 1.1.0, `[Unreleased]` fed with each change |
@@ -44,35 +44,42 @@ src/
   index.ts              public entry; placeholder using the env detection
   env/
     detect.ts           runtime environment detection
-    node-import.ts      single entry point for dynamic node:* imports
+    node-builtin.ts     single entry point for node:* built-ins
 tests/
   *.test.ts             rstest unit tests, run in node and browser projects
-  consumers/            consumer fixtures (section 3)
+  consumers/            consumer fixtures and browser harness (section 3)
+scripts/
+  test-consumers.ts     local runner for the consumer fixtures
 rslib.config.ts
 rstest.config.ts
 tsconfig.json
+tsconfig.build.json     src only; drives the .d.ts output
 CHANGELOG.md
 ```
 
 ### Build (`rslib.config.ts`)
 
 - One lib entry, `format: "esm"`, `bundle: true`, `dts: true`,
-  `syntax: "es2022"`, output to `dist/`.
-- `node:*` specifiers are external.
+  `syntax: "es2022"`, `output.target: "web"`, output to `dist/`.
+- `source.tsconfigPath: "./tsconfig.build.json"`. With the root tsconfig
+  (which includes `tests/` and the config files), the declarations land in
+  `dist/src/` next to a `dist/rslib.config.d.ts`.
+- Under TypeScript 7, rslib generates the declarations with tsgo by itself.
 
 ### Runtime environment detection
 
 - `src/env/detect.ts` decides the environment from globals, e.g.
   `globalThis.process?.versions?.node`. It imports nothing from Node.
-- `src/env/node-import.ts` is the only module allowed to load a Node built-in.
-  It calls `import(/* webpackIgnore: true */ /* @vite-ignore */ specifier)`
-  with a non-literal specifier. A literal `import("node:fs")` makes webpack
-  fail on a web target (`UnhandledSchemeError`) and makes Vite warn
-  ("externalized for browser compatibility"). The magic comments and the
-  non-literal specifier keep bundlers from resolving it.
+- `src/env/node-builtin.ts` is the only module allowed to load a Node
+  built-in: `getNodeBuiltin<T>(name): T | undefined` returns
+  `globalThis.process?.getBuiltinModule?.("node:" + name)`. It is synchronous
+  and contains no `import()`, so bundlers have nothing to resolve. Outside
+  Node (or under a `process` polyfill) it returns `undefined`.
+- Rejected: a dynamic `import(/* webpackIgnore: true */ specifier)`. Rspack
+  strips the `webpackIgnore` comment at build time, and webpack 5 then warns
+  `Critical dependency: the request of a dependency is an expression` in
+  every consumer build (verified in a spike).
 - The helper is only reached behind a positive Node detection.
-- Whether the magic comments survive the rslib build is not guaranteed; the
-  consumer tests (section 3) are what proves it.
 
 ### `package.json`
 
@@ -89,12 +96,13 @@ npm-facing fields:
 - Resolution: `"type": "module"`,
   `"exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } }`,
   top-level `"types": "./dist/index.d.ts"`, `"files": ["dist"]`,
-  `"sideEffects": false`, `"engines": { "node": ">=22" }`.
+  `"sideEffects": false`, `"engines": { "node": ">=22.3.0" }`.
 - Publication: `"publishConfig": { "access": "public", "provenance": true }`.
 
 Scripts: `build` (`rslib build`), `dev` (`rslib build --watch`),
 `typecheck` (`tsc --noEmit`), `lint` (`biome check`), `test` (`rstest`),
-`lint:package` (`publint` then `attw --pack . --profile esm-only`).
+`lint:package` (`publint` then `attw --pack . --profile esm-only`),
+`test:consumers` (`tsx scripts/test-consumers.ts`).
 
 New devDependencies: `@rslib/core`, `@rstest/core`, `@rstest/browser`,
 `publint`, `@arethetypeswrong/cli`.
@@ -130,7 +138,8 @@ Jobs:
    The `browser` project runs on one matrix entry only, after
    `pnpm exec playwright install --with-deps chromium`; the browser result
    does not depend on the Node version.
-3. **`consumers`** (`needs: check`, matrix over fixtures): section 3.
+3. **`consumers`** (`needs: check`, matrix over fixtures): `pnpm install`,
+   Chromium, the packed tarball from `check`; section 3.
 
 pnpm is installed by `pnpm/action-setup`, which reads `packageManager`.
 
@@ -150,15 +159,24 @@ setup or `node_modules`.
 | `rsbuild` | Web build with zero warnings; bundle run in Chromium takes the browser branch |
 | `rspack` | Same as `rsbuild` |
 | `webpack` | Same as `rsbuild` (webpack 5) |
-| `vite` | Same as `rsbuild`; plus `tsc --noEmit` with `moduleResolution: "bundler"` |
+| `vite` | Same as `rsbuild` (Vite 8); plus `tsc --noEmit` with `moduleResolution: "bundler"` |
 
-- **Zero warnings**: each bundler fixture exits non-zero when its bundler
-  reports a warning — `stats.hasWarnings()` for webpack and rspack, an
-  `onwarn` that throws for Vite, the equivalent hook for Rsbuild.
+Fixture contract: `npm run check` exits non-zero on any failure. A bundler
+fixture's `check` builds into `dist/` including a `dist/index.html`
+(webpack and rspack write theirs, they generate none); the runner then runs
+the browser harness on that `dist/`.
+
+- **Zero warnings**: `stats.hasWarnings()` for webpack and rspack,
+  `onAfterBuild` stats for Rsbuild, `build.rolldownOptions.onwarn` that
+  throws for Vite. Vite 8 does not warn about `node:*` at build time, so the
+  browser run is what catches a Node built-in leaking into the bundle.
 - **Browser run**: a shared harness, `tests/consumers/run-in-browser.mjs`
-  (Playwright), serves the fixture's output directory, loads the page and
-  reads a result the bundle exposes on `window`. It exits non-zero on a
-  missing or wrong result, or on any page error.
+  (Playwright), runs from the repo (its Playwright and Chromium), serves the
+  given directory, loads the page and reads the result the bundle stores in
+  `window.__result`. It exits non-zero on a missing or wrong result, or on
+  any page error or console error.
+- **Runners**: CI loops in inline shell (pack, copy, `npm install <tarball>`,
+  `npm run check`, harness). `pnpm test:consumers` does the same locally.
 
 ## 4. Release and changelog
 
@@ -205,7 +223,7 @@ rather than intent. Nothing already stated in AGENTS.md is repeated.
 
 | Memory | Content |
 |---|---|
-| `project/overview` | Universal logger; product goals: low overhead and a pleasant look. ESM only, Node ≥ 22, runtime detection, single `node:*` helper and why the magic comments |
+| `project/overview` | Universal logger; product goals: low overhead and a pleasant look. ESM only, Node ≥ 22.3, runtime detection, single `node:*` helper on `process.getBuiltinModule` and why not `import()` |
 | `project/stack` | pnpm, Biome, TypeScript 7, rslib, rstest + `@rstest/browser`, publint, attw, tsx, actionlint + ShellCheck (devcontainer); commands |
 | `conventions/code-style` | Relative extensionless imports, no aliases |
 | `conventions/workflow` | Every piece of work on a feat-branch, opened before the spec is committed; implementation in subagent mode by default (`superpowers:subagent-driven-development`), inline only on request; before delivery `biome ci`, `typecheck`, `test`, `build` green; after the merge, Serena memories updated |
@@ -219,9 +237,9 @@ Further conventions from the user go under `conventions/<topic>`.
 
 - `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test` pass locally, both
   rstest projects included.
-- The built `dist/index.js` still carries the `webpackIgnore` / `@vite-ignore`
-  comments on the `node:*` dynamic import.
-- Every consumer fixture passes locally against a packed tarball.
+- `dist/` holds `index.js`, `index.d.ts` and `env/*.d.ts` only; no `import(`
+  in `dist/index.js`.
+- `pnpm test:consumers` passes: every fixture against a packed tarball.
 - `pnpm lint:package` passes (publint and attw).
 - `actionlint` reports nothing on both workflows, ShellCheck included (both
   installed by the devcontainer).
