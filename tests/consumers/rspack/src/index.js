@@ -1,3 +1,16 @@
-import { describeRuntime } from "lololog";
+import { L } from "lololog";
 
-window.__result = describeRuntime();
+const calls = [];
+const log = console.log;
+console.log = (...args) => calls.push(args);
+try {
+	L.scope("app").warn("hello %s", "world");
+} finally {
+	console.log = log;
+}
+
+const [format, badge] = calls[0] ?? [];
+window.__result =
+	format === "%cWARN <app>%c hello %s" && String(badge).includes("background-color: orange")
+		? "browser"
+		: `unexpected: ${JSON.stringify(calls)}`;
