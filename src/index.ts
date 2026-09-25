@@ -1,15 +1,11 @@
-import { isMainBrowser, isNode, isWebWorker } from "./env/detect";
-import { getNodeBuiltin } from "./env/node-builtin";
+import { createRootLogger, type RootLogger } from "./logger";
+import { shared } from "./singleton";
 
-export { isBrowser, isMainBrowser, isNode, isWebWorker } from "./env/detect";
+export const logger: RootLogger = shared(globalThis, Symbol.for("lololog"), () =>
+	createRootLogger(),
+);
+export const L: RootLogger = logger;
 
-interface NodeOs {
-	platform(): string;
-}
-
-export function describeRuntime(): string {
-	if (isNode) return `node:${getNodeBuiltin<NodeOs>("os")?.platform() ?? "unknown"}`;
-	if (isMainBrowser) return "browser";
-	if (isWebWorker) return "worker";
-	return "unknown";
-}
+export { LEVELS, type Level } from "./levels";
+export type { Logger, RootLogger } from "./logger";
+export type { Format } from "./renderers/select";
