@@ -18,7 +18,9 @@
   at the repo root, git-ignored, never in `src/`, `tests/` or `scripts/`.
 - When the user says the session is running out of tokens: persist everything
   worth keeping (current task, state, decisions, next steps, open questions)
-  in a throwaway `.scratchpad/handoff.md`, then give the user the exact first
+  in a throwaway `.scratchpad/handoff.md` whose first line reads
+  "À supprimer après lecture." (the handoff itself carries the instruction,
+  whatever the first message says), then give the user the exact first
   message to type in the fresh session, e.g.
   "Lis .scratchpad/handoff.md, reprends à partir de là, puis supprime-le."
   The next session deletes the handoff once read; anything durable belongs in
