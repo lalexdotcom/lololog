@@ -1,12 +1,17 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
 		"useIgnoreFile": true
 	},
 	"files": {
-		"includes": ["**", "!**/dist/**"]
+		"includes": [
+			"**",
+			"!**/dist",
+			"!.devcontainer/devcontainer-lock.json",
+			"!.claude/settings.json"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -16,7 +21,7 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"preset": "recommended"
 		}
 	},
 	"assist": {
