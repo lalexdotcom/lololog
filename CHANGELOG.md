@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The runtime environment flags (`isNode`, `isMainBrowser`, `isWebWorker`,
   `isBrowser`) are no longer exported.
+- `describeRuntime()` is no longer exported.
 
 ## [0.0.1-alpha.0] - 2026-09-25
 
