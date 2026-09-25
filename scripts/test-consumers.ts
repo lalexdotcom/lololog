@@ -49,8 +49,14 @@ try {
 	}
 	if (failed.length > 0) {
 		console.error(`failed: ${failed.join(", ")}`);
+		console.error(`kept for inspection: ${work}`);
 		process.exitCode = 1;
+	} else {
+		rmSync(work, { recursive: true, force: true });
 	}
-} finally {
+} catch (error) {
+	// A failure here happens before any fixture ran (build/pack), so there is
+	// nothing fixture-specific to inspect.
 	rmSync(work, { recursive: true, force: true });
+	throw error;
 }
