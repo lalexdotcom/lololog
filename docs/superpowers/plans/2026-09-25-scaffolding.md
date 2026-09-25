@@ -4,7 +4,7 @@
 
 **Goal:** Give `lololog` its full tooling — build, unit tests in Node and Chromium, consumer tests against real bundlers, CI, release, changelog, Serena memories — around a placeholder that exercises runtime environment detection.
 
-**Architecture:** One ESM bundle built by rslib. The code detects its environment at runtime from globals and reaches Node built-ins only through `process.getBuiltinModule`, so no bundler ever sees a `node:*` import. Unit tests run the same files in a `node` and a `browser` rstest project; consumer fixtures install the packed tarball with npm and build it with rsbuild, rspack, webpack and vite.
+**Architecture:** One ESM bundle built by rslib. Module-level flags (`isNode`, `isMainBrowser`, `isWebWorker`, `isBrowser`) detect the environment once at load and the code reaches Node built-ins only through `process.getBuiltinModule`, so no bundler ever sees a `node:*` import. Unit tests run the same files in a `node` and a `browser` rstest project; consumer fixtures install the packed tarball with npm and build it with rsbuild, rspack, webpack and vite.
 
 **Tech Stack:** pnpm 12, TypeScript 7 (tsgo), Biome 2.5, rslib 1.0, rstest 0.12 + `@rstest/browser` (Playwright Chromium), publint, `@arethetypeswrong/cli`, GitHub Actions, `lalexdotcom/action-release-and-publish@v3`.
 
@@ -26,10 +26,10 @@
 
 ## Review Focus
 
-- A jsdom test environment or an Electron renderer exposes both `window`/`document` and a real Node `process`: detection must answer `node`, since Node built-ins are reachable there. Pinned in Task 1.
-- A browser bundle with a `process` polyfill (`{ env: {}, versions: {} }`): detection must answer `browser`, and `getNodeBuiltin` must return `undefined`. Pinned in Task 1.
-- A Node runtime without `process.getBuiltinModule` (older than 22.3, engines ignored): `getNodeBuiltin` returns `undefined` without throwing, `describeRuntime()` answers `node:unknown`. Pinned in Task 1.
-- A web worker or edge runtime (no `process`, no `document`): detection answers `unknown` instead of guessing. Pinned in Task 1.
+- A browser bundle with a `process` polyfill (`process/browser`: `{ env: {}, versions: {}, browser: true }`), or a smarter one faking `versions.node` and `getBuiltinModule`: `isNode` must stay false, since only the native `process` carries the `[object process]` tag. Pinned in Task 1.
+- A jsdom test environment or an Electron renderer exposes a DOM next to a real Node `process`: both `isNode` and `isMainBrowser` must be true. Pinned in Task 1.
+- A native `process` without `getBuiltinModule` (Node older than 22.3, engines ignored): `isNode` is false and `getNodeBuiltin` returns `undefined` without throwing. Pinned in Task 1.
+- Deno and edge runtimes define `self` without being web workers: `isWorkerScope` must require `self instanceof WorkerGlobalScope`, not `self` alone. Pinned in Task 1.
 - A prerelease tag next to its stable section: `v1.0.0-beta.1` must extract `## [1.0.0-beta.1]` and never `## [1.0.0]`, and a tag with no or an empty section must fail the release. Pinned in Task 5.
 
 ---
@@ -45,9 +45,9 @@
 **Interfaces:**
 - Consumes: nothing.
 - Produces:
-  - `src/env/detect.ts`: `export type Environment = "node" | "browser" | "unknown"`; `export function detectEnvironment(scope: object = globalThis): Environment`
+  - `src/env/detect.ts`: predicates `isNodeScope(scope: object): boolean`, `hasDocument(scope: object): boolean`, `isWorkerScope(scope: object): boolean`; flags `isNode`, `isMainBrowser`, `isWebWorker`, `isBrowser` (`boolean` constants computed from `globalThis` at module load).
   - `src/env/node-builtin.ts`: `export function getNodeBuiltin<T>(name: string, scope: object = globalThis): T | undefined`
-  - `src/index.ts` (public entry): `export type { Environment }`, `export { detectEnvironment }`, `export function describeRuntime(): string` — returns `"browser"`, `"unknown"`, or `"node:<platform>"` (`"node:unknown"` when the `os` built-in is unreachable).
+  - `src/index.ts` (public entry): `export { isBrowser, isMainBrowser, isNode, isWebWorker }` and `export function describeRuntime(): string` — returns `"node:<platform>"` (`"node:unknown"` if `os` is unreachable), `"browser"`, `"worker"` or `"unknown"`, checked in that order. The predicates stay internal.
   - `tsconfig.build.json` (Task 2's build uses it), `pnpm typecheck`, `pnpm test`.
 
 - [ ] **Step 1: Install the test and type dependencies**
@@ -136,29 +136,94 @@ In `package.json`, add to `"scripts"` (create the object after `"license"` if mi
 
 ```ts
 import { describe, expect, test } from "@rstest/core";
-import { detectEnvironment } from "../src/env/detect";
+import {
+	hasDocument,
+	isBrowser,
+	isMainBrowser,
+	isNode,
+	isNodeScope,
+	isWebWorker,
+	isWorkerScope,
+} from "../src/env/detect";
 
-describe("detectEnvironment", () => {
-	test("detects the runtime the test project runs in", () => {
-		expect(detectEnvironment()).toBe(typeof window === "undefined" ? "node" : "browser");
+const inNode = typeof window === "undefined";
+
+function nativeLookingProcess(extra: object = {}): object {
+	return { [Symbol.toStringTag]: "process", ...extra };
+}
+
+describe("isNodeScope", () => {
+	test("recognises the native process of the runtime running the tests", () => {
+		expect(isNodeScope(globalThis)).toBe(inNode);
 	});
 
-	test("answers node when a DOM and a real Node process coexist (jsdom, Electron renderer)", () => {
-		const scope = { process: { versions: { node: "24.0.0" } }, window: {}, document: {} };
-		expect(detectEnvironment(scope)).toBe("node");
+	test("accepts a process tagged as native with getBuiltinModule", () => {
+		const process = nativeLookingProcess({ getBuiltinModule: () => undefined });
+		expect(isNodeScope({ process })).toBe(true);
 	});
 
-	test("answers browser under a process polyfill", () => {
-		const scope = { process: { env: {}, versions: {} }, window: {}, document: {} };
-		expect(detectEnvironment(scope)).toBe("browser");
+	test("rejects the process/browser polyfill", () => {
+		expect(isNodeScope({ process: { env: {}, versions: {}, browser: true } })).toBe(false);
 	});
 
-	test("answers unknown with neither process nor DOM (web worker, edge runtime)", () => {
-		expect(detectEnvironment({})).toBe("unknown");
+	test("rejects a plain object faking versions.node and getBuiltinModule", () => {
+		const process = { versions: { node: "24.0.0" }, getBuiltinModule: () => undefined };
+		expect(isNodeScope({ process })).toBe(false);
 	});
 
-	test("answers unknown with a window but no document", () => {
-		expect(detectEnvironment({ window: {} })).toBe("unknown");
+	test("rejects a native process without getBuiltinModule (Node < 22.3)", () => {
+		expect(isNodeScope({ process: nativeLookingProcess() })).toBe(false);
+	});
+
+	test("rejects a scope without process", () => {
+		expect(isNodeScope({})).toBe(false);
+	});
+});
+
+describe("hasDocument", () => {
+	test("accepts a window with a document", () => {
+		expect(hasDocument({ window: { document: {} } })).toBe(true);
+	});
+
+	test("rejects a window without a document", () => {
+		expect(hasDocument({ window: {} })).toBe(false);
+	});
+
+	test("rejects a scope without window", () => {
+		expect(hasDocument({})).toBe(false);
+	});
+
+	test("coexists with a native process (jsdom, Electron renderer)", () => {
+		const process = nativeLookingProcess({ getBuiltinModule: () => undefined });
+		const scope = { process, window: { document: {} } };
+		expect([isNodeScope(scope), hasDocument(scope)]).toEqual([true, true]);
+	});
+});
+
+describe("isWorkerScope", () => {
+	class WorkerGlobalScope {}
+
+	test("accepts a self inheriting from WorkerGlobalScope", () => {
+		expect(isWorkerScope({ self: new WorkerGlobalScope(), WorkerGlobalScope })).toBe(true);
+	});
+
+	test("rejects self alone (Deno, edge runtimes)", () => {
+		expect(isWorkerScope({ self: {} })).toBe(false);
+	});
+
+	test("rejects a self that is not a WorkerGlobalScope", () => {
+		expect(isWorkerScope({ self: {}, WorkerGlobalScope })).toBe(false);
+	});
+});
+
+describe("flags", () => {
+	test("describe the runtime running the tests", () => {
+		expect({ isNode, isMainBrowser, isWebWorker, isBrowser }).toEqual({
+			isNode: inNode,
+			isMainBrowser: !inNode,
+			isWebWorker: false,
+			isBrowser: !inNode,
+		});
 	});
 });
 ```
@@ -232,22 +297,37 @@ Expected: FAIL in both projects — the imports `../src/env/detect`, `../src/env
 `src/env/detect.ts`:
 
 ```ts
-export type Environment = "node" | "browser" | "unknown";
-
 interface RuntimeScope {
-	process?: { versions?: { node?: unknown } };
-	window?: unknown;
-	document?: unknown;
+	process?: { getBuiltinModule?: unknown };
+	window?: { document?: unknown };
+	self?: unknown;
+	WorkerGlobalScope?: unknown;
 }
 
-export function detectEnvironment(scope: object = globalThis): Environment {
-	const { process, window, document } = scope as RuntimeScope;
-	// Node is checked first: jsdom and Electron renderers expose a DOM next to a real
-	// Node process, and its built-ins are reachable there.
-	if (typeof process?.versions?.node === "string") return "node";
-	if (window !== undefined && document !== undefined) return "browser";
-	return "unknown";
+export function isNodeScope(scope: object): boolean {
+	const { process } = scope as RuntimeScope;
+	// The tag rules out polyfills such as process/browser, which are plain objects and
+	// may fake versions.node; getBuiltinModule is the capability the library relies on.
+	return (
+		Object.prototype.toString.call(process) === "[object process]" &&
+		typeof process?.getBuiltinModule === "function"
+	);
 }
+
+export function hasDocument(scope: object): boolean {
+	return (scope as RuntimeScope).window?.document !== undefined;
+}
+
+export function isWorkerScope(scope: object): boolean {
+	const { self, WorkerGlobalScope } = scope as RuntimeScope;
+	// Not `self` alone: Deno and edge runtimes define it without being web workers.
+	return typeof WorkerGlobalScope === "function" && self instanceof WorkerGlobalScope;
+}
+
+export const isNode = /* @__PURE__ */ isNodeScope(globalThis);
+export const isMainBrowser = /* @__PURE__ */ hasDocument(globalThis);
+export const isWebWorker = !isNode && /* @__PURE__ */ isWorkerScope(globalThis);
+export const isBrowser = isMainBrowser || isWebWorker;
 ```
 
 `src/env/node-builtin.ts`:
@@ -270,27 +350,27 @@ export function getNodeBuiltin<T>(name: string, scope: object = globalThis): T |
 `src/index.ts`:
 
 ```ts
-import { detectEnvironment } from "./env/detect";
+import { isMainBrowser, isNode, isWebWorker } from "./env/detect";
 import { getNodeBuiltin } from "./env/node-builtin";
 
-export type { Environment } from "./env/detect";
-export { detectEnvironment };
+export { isBrowser, isMainBrowser, isNode, isWebWorker } from "./env/detect";
 
 interface NodeOs {
 	platform(): string;
 }
 
 export function describeRuntime(): string {
-	const environment = detectEnvironment();
-	if (environment !== "node") return environment;
-	return `node:${getNodeBuiltin<NodeOs>("os")?.platform() ?? "unknown"}`;
+	if (isNode) return `node:${getNodeBuiltin<NodeOs>("os")?.platform() ?? "unknown"}`;
+	if (isMainBrowser) return "browser";
+	if (isWebWorker) return "worker";
+	return "unknown";
 }
 ```
 
 - [ ] **Step 8: Run the tests to verify they pass**
 
 Run: `pnpm test`
-Expected: PASS — 10 tests in project `node`, 10 in project `browser`.
+Expected: PASS — 19 tests in project `node`, 19 in project `browser`.
 
 - [ ] **Step 9: Verify the typecheck, including the Node-global guard**
 
@@ -310,7 +390,8 @@ git commit -F - <<'EOF'
 feat(env): detect the runtime environment and reach node built-ins safely
 
 The logger adapts to where it runs, so detection and built-in access come
-first. Unit tests run in both Node and Chromium; the typecheck runs src/
+first. The flags are computed once at load so hot paths pay nothing, and
+they reject process polyfills, which would otherwise pass for Node. Unit tests run in both Node and Chromium; the typecheck runs src/
 alone as well, because test tooling types would otherwise hide a Node
 global slipping into the universal code.
 
@@ -490,7 +571,7 @@ EOF
 - Modify: `package.json` (`scripts.test:consumers`)
 
 **Interfaces:**
-- Consumes: `pnpm build`, `pnpm pack`, and the public API `detectEnvironment`, `describeRuntime` of package `lololog` (Tasks 1–2).
+- Consumes: `pnpm build`, `pnpm pack`, and the public API `isNode`, `describeRuntime` of package `lololog` (Tasks 1–2).
 - Produces (Task 4's CI relies on these exact names):
   - Fixture contract: each `tests/consumers/<name>/` has `npm run check`, exiting non-zero on any failure. Browser fixtures build into `dist/` with a `dist/index.html` whose bundle sets `window.__result`.
   - Fixture list: `node` (no browser run), `rsbuild`, `rspack`, `webpack`, `vite` (browser run).
@@ -601,10 +682,9 @@ try {
 `tests/consumers/node/index.mjs`:
 
 ```js
-import { describeRuntime, detectEnvironment } from "lololog";
+import { describeRuntime, isBrowser, isNode } from "lololog";
 
-const environment = detectEnvironment();
-if (environment !== "node") throw new Error(`expected node, got ${environment}`);
+if (!isNode || isBrowser) throw new Error(`expected Node only, got isNode=${isNode} isBrowser=${isBrowser}`);
 
 const runtime = describeRuntime();
 if (!/^node:\w+$/.test(runtime) || runtime === "node:unknown") {
@@ -918,7 +998,7 @@ Expected: FAIL with `Cannot find module 'node:os'` from the src-only pass — th
 - [ ] **Step 10: Check the root typecheck and tests still ignore the fixtures**
 
 Run: `pnpm typecheck && pnpm test`
-Expected: exit 0; rstest collects only `tests/*.test.ts` (20 tests), nothing under `tests/consumers/`.
+Expected: exit 0; rstest collects only `tests/*.test.ts` (38 tests), nothing under `tests/consumers/`.
 
 - [ ] **Step 11: Format, lint, commit**
 
@@ -1230,9 +1310,13 @@ Universal TypeScript logger for browser and Node.js. npm description:
 goals drive every design choice: low overhead and a pleasant look.
 
 - ESM only (no CJS, no UMD); Node >= 22.3.0.
-- One bundle for every environment. `src/env/detect.ts` `detectEnvironment()`
-  decides at runtime (`node` | `browser` | `unknown`); Node wins when a DOM and
-  a real Node process coexist (jsdom, Electron renderer).
+- One bundle for every environment. `src/env/detect.ts` exports module-level
+  flags `isNode`, `isMainBrowser`, `isWebWorker`, `isBrowser`, computed once at
+  load; they are not exclusive (jsdom and Electron renderers are both Node and
+  main browser). `isNode` requires the native `[object process]` tag and
+  `process.getBuiltinModule`, so a `process` polyfill never passes for Node;
+  `isWebWorker` requires `self instanceof WorkerGlobalScope`, since Deno and
+  edge runtimes define `self` too.
 - Node built-ins are reached only through `src/env/node-builtin.ts`
   `getNodeBuiltin(name)`, on `process.getBuiltinModule` (sync, Node 22.3+). Never
   `import("node:…")`: rspack strips `webpackIgnore` from it at build time, and
@@ -1294,8 +1378,10 @@ devcontainer.
 - Unit tests live in `tests/` (sibling of `src/`), `*.test.ts`. Every test file
   runs in both rstest projects, `node` and `browser`; branch on
   `typeof window === "undefined"` when the expectation differs.
-- Environment-dependent code takes an optional `scope` (defaults to
-  `globalThis`) so tests can simulate other runtimes with a plain object.
+- Environment detection lives in pure predicates taking a `scope`; the
+  exported flags apply them to `globalThis`. Tests simulate other runtimes by
+  passing plain objects to the predicates, and check the flags against the
+  runtime actually running them.
 - Consumer fixtures live in `tests/consumers/<name>/`, each with its own
   `package.json` and `npm run check`. They install the packed tarball with
   npm. Browser fixtures build into `dist/` with an `index.html` whose bundle

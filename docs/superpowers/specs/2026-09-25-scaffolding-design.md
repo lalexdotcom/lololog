@@ -31,7 +31,7 @@ real to build, test and consume.
 |---|---|
 | Output format | ESM only, with `.d.ts` |
 | Node floor | `>=22.3.0` (`process.getBuiltinModule`); CI on Node 22 and 24; release on `lts/*` |
-| Environment strategy | Single build, runtime detection, `node:*` built-ins through `process.getBuiltinModule` |
+| Environment strategy | Single build; module-level flags `isNode`, `isMainBrowser`, `isWebWorker`, `isBrowser`; `node:*` built-ins through `process.getBuiltinModule` |
 | Unit tests | Rstest, two projects: `node` and `browser` (Playwright Chromium) |
 | Consumer tests | Packed tarball installed with npm into fixture projects |
 | Changelog | Keep a Changelog 1.1.0, `[Unreleased]` fed with each change |
@@ -68,8 +68,31 @@ CHANGELOG.md
 
 ### Runtime environment detection
 
-- `src/env/detect.ts` decides the environment from globals, e.g.
-  `globalThis.process?.versions?.node`. It imports nothing from Node.
+- `src/env/detect.ts` exports four booleans computed once at module load,
+  so hot paths pay no detection cost. They are not mutually exclusive:
+
+  | Context | `isNode` | `isMainBrowser` | `isWebWorker` | `isBrowser` |
+  |---|---|---|---|---|
+  | Node, Bun, Deno | ✓ | | | |
+  | jsdom, Electron renderer | ✓ | ✓ | | ✓ |
+  | Browser main thread | | ✓ | | ✓ |
+  | Web Worker | | | ✓ | ✓ |
+  | Browser with a `process` polyfill | | ✓ | | ✓ |
+  | Edge runtime without `process`, empty scope | | | | |
+
+- Each flag applies a pure predicate to `globalThis`, marked
+  `/* @__PURE__ */` so an unused flag is tree-shaken; the predicates take the
+  scope as a parameter so tests simulate other runtimes with plain objects.
+  - `isNodeScope`: `Object.prototype.toString.call(process)` is
+    `[object process]` (identity: a polyfill such as `process/browser` is a
+    plain object) **and** `process.getBuiltinModule` is a function
+    (capability: what the library actually needs). Checking
+    `process.versions.node` alone is rejected: a polyfill can set it.
+  - `hasDocument`: `window.document` is defined.
+  - `isWorkerScope`: `self instanceof WorkerGlobalScope`. `self` alone is
+    rejected: Deno and edge runtimes define it too. `isWebWorker` also
+    requires `!isNode`.
+- It imports nothing from Node.
 - `src/env/node-builtin.ts` is the only module allowed to load a Node
   built-in: `getNodeBuiltin<T>(name): T | undefined` returns
   `globalThis.process?.getBuiltinModule?.("node:" + name)`. It is synchronous
