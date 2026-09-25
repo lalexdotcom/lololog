@@ -24,10 +24,12 @@ export const LEVEL_STYLES = {
 	wth: { color: "black", "background-color": "lightgray" },
 	debug: { color: "black", "background-color": "yellow" },
 	verb: { color: "white", "background-color": "mediumpurple" },
-	info: { color: "white", "background-color": "grey" },
+	// dimgray, not grey: white on grey is 3.9:1, under the 4.5:1 below which VS Code's terminal
+	// repaints the text dark.
+	info: { color: "white", "background-color": "dimgray" },
 	success: { color: "white", "background-color": "green" },
 	notice: { color: "white", "background-color": "blue" },
-	warn: { color: "white", "background-color": "orange" },
+	warn: { color: "black", "background-color": "orange" },
 	error: { color: "white", "background-color": "red" },
 	crit: { color: "white", "background-color": "red" },
 	alert: { color: "white", "background-color": "red" },

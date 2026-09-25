@@ -21,14 +21,17 @@ export const STYLES = {
 		cyan: 36,
 		mediumpurple: [38, 5, 135],
 	},
+	// green and grey sit on the CSS shade: ANSI 40 and 249 are so light that white text drops to
+	// a 2:1 contrast, which VS Code's minimumContrastRatio then silently repaints.
 	"background-color": {
 		black: 40,
-		grey: [48, 5, 249],
+		grey: [48, 5, 244],
+		dimgray: [48, 5, 242],
 		lightgray: [48, 5, 252],
 		white: 107,
 
 		red: [48, 5, 160],
-		green: [48, 5, 40],
+		green: [48, 5, 28],
 		yellow: [48, 5, 226],
 		orange: [48, 5, 208],
 		blue: [48, 5, 21],

@@ -33,6 +33,10 @@ describe("LEVEL_STYLES", () => {
 		expect(Object.keys(LEVEL_STYLES)).toEqual(LEVEL_NAMES);
 	});
 
+	test("paints info white on dimgray", () => {
+		expect(LEVEL_STYLES.info).toEqual({ color: "white", "background-color": "dimgray" });
+	});
+
 	test("paints every error level white on red", () => {
 		for (const level of ["error", "crit", "alert", "emerg"] as const) {
 			expect(LEVEL_STYLES[level]).toEqual({ color: "white", "background-color": "red" });

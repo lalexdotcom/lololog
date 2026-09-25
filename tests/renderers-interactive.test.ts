@@ -68,7 +68,7 @@ describe("renderTty", () => {
 	});
 
 	test("paints the badge in the level colours", () => {
-		expect(BADGES.warn).toBe("\u001B[38;5;15;48;5;208m  WARN   \u001B[0m");
+		expect(BADGES.warn).toBe("\u001B[30;48;5;208m  WARN   \u001B[0m");
 		expect(renderTty(record())).toEqual([`${BADGES.warn} hi`]);
 	});
 
@@ -88,7 +88,7 @@ describe("renderTty", () => {
 describe("renderBrowser", () => {
 	test("draws the label as a padded, rounded badge", () => {
 		expect(BADGE_CSS.warn).toBe(
-			"color: white; background-color: orange; padding: 1px 4px; border-radius: 4px",
+			"color: black; background-color: orange; padding: 1px 4px; border-radius: 4px",
 		);
 		expect(renderBrowser(record({ args: ["user %s", "bob"] }))).toEqual([
 			"%cWARN%c user %s",

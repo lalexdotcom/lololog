@@ -22,4 +22,13 @@ describe("STYLES", () => {
 		expect(STYLES.color.lightgray).toEqual([38, 5, 252]);
 		expect(STYLES["background-color"].lightgray).toEqual([48, 5, 252]);
 	});
+
+	test("draws green and grey backgrounds in the shade of their CSS namesake", () => {
+		expect(STYLES["background-color"].green).toEqual([48, 5, 28]);
+		expect(STYLES["background-color"].grey).toEqual([48, 5, 244]);
+	});
+
+	test("provides a dimgray background in the shade of its CSS namesake", () => {
+		expect(STYLES["background-color"].dimgray).toEqual([48, 5, 242]);
+	});
 });

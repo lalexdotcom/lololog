@@ -54,10 +54,10 @@ export type Level = keyof typeof LEVELS;
 | `wth` | TRACE | debug (7) | black | lightgray |
 | `debug` | DEBUG | debug (7) | black | yellow |
 | `verb` | DEBUG4 | debug (7) | white | mediumpurple |
-| `info` | INFO | info (6) | white | grey |
+| `info` | INFO | info (6) | white | dimgray |
 | `success` | INFO2 | info (6) | white | green |
 | `notice` | INFO3 | notice (5) | white | blue |
-| `warn` | WARN | warning (4) | white | orange |
+| `warn` | WARN | warning (4) | black | orange |
 | `error` | ERROR | err (3) | white | red |
 | `crit` | ERROR4 | crit (2) | white | red |
 | `alert` | FATAL2 | alert (1) | white | red |
@@ -65,7 +65,12 @@ export type Level = keyof typeof LEVELS;
 
 Colour names are CSS colour names, so one table serves the ANSI output and the
 browser CSS. `src/style/ansi.ts` takes over the existing `STYLES` / `colorize`
-and adds `lightgray`: text `[38, 5, 252]`, background `[48, 5, 252]`.
+and adds `lightgray`: text `[38, 5, 252]`, background `[48, 5, 252]`. The
+`green` and `grey` backgrounds use the 256-colour entries of their CSS shade,
+`[48, 5, 28]` (`#008700`) and `[48, 5, 244]` (`#808080`), so white text keeps
+the same contrast in the terminal as in the browser. `dimgray` (background
+`[48, 5, 242]`) is added for `info`: white on `grey` is 3.9:1, under the 4.5:1
+below which VS Code's terminal repaints the text dark.
 
 The level label is the level key in upper case (`WARN`, `SUCCESS`, `WTH`).
 
