@@ -1,0 +1,4 @@
+# pnpm 11+ fails install on unreviewed build scripts. esbuild (via tsx) has one,
+# which only fetches its platform binary.
+allowBuilds:
+  esbuild: true

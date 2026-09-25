@@ -1,0 +1,27 @@
+.DS_Store
+node_modules/
+.pnpm-store/
+dist/
+*.tsbuildinfo
+
+.venv/
+__pycache__/
+.ruff_cache/
+.pytest_cache/
+
+.serena/cache/
+.serena/project.local.yml
+
+# Permission grants Claude Code writes as you approve them: machine-specific,
+# and it rewrites whichever settings file it lands in.
+.claude/settings.local.json
+
+# Ledger and review packages of an in-flight plan; the git history is the record.
+.superpowers/
+
+# Per-project files `mempalace init` regenerates on every container build. Listed
+# here so init finds them and does not append its own block to this file.
+mempalace.yaml
+entities.json
+
+_staging/

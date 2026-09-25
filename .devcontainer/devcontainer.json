@@ -1,0 +1,99 @@
+{
+	"name": "${localWorkspaceFolderBasename}",
+	// Not Microsoft's typescript-node: it lags Node patch releases. Floating tag:
+	// `docker pull node:24-trixie`, then rebuild, to update Node.
+	"image": "node:24-trixie",
+	// OrbStack lists containers by their Docker name; "name" above only labels
+	// the VS Code window. The folder name keeps two clones from colliding.
+	"runArgs": ["--name", "${localWorkspaceFolderBasename}"],
+	// Reaps zombie processes.
+	"init": true,
+	// The image declares no user: everything would run as root.
+	"remoteUser": "node",
+	"features": {
+		// sudo for `node` (on-create.sh chowns /ai-tools), zsh.
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"username": "node"
+		},
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+		// Pinned to the major
+		// `moby: false` is required: install.sh exits 1 on Debian trixie when it
+		// is true, since trixie ships no moby-cli.
+		"ghcr.io/devcontainers/features/docker-in-docker:4": {
+			"moby": false
+		},
+		"ghcr.io/devcontainers-extra/features/apt-get-packages:1": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {
+			"installDirectlyFromGitHubRelease": true,
+			"version": "latest"
+		},
+		"ghcr.io/devcontainers-extra/features/pnpm:2": {
+			"version": "latest"
+		},
+		"ghcr.io/devcontainers-extra/features/uv:1": {
+			"version": "latest"
+		}
+	},
+	"mounts": [
+		"source=ai-tools-config-${devcontainerId},target=/ai-tools,type=volume"
+	],
+	"containerEnv": {
+		// The image sets no locale, leaving tools on POSIX/ASCII.
+		"LANG": "C.UTF-8",
+		"CLAUDE_CONFIG_DIR": "/ai-tools/.claude",
+		"MEMPALACE_PALACE_PATH": "/ai-tools/.mempalace",
+		"SERENA_HOME": "/ai-tools/.serena",
+		// superpowers' brainstorming preview server.
+		"BRAINSTORM_PORT": "5174"
+	},
+	// uv installs tools, serena-hooks included, in ~/.local/bin, off the image's
+	// PATH. remoteEnv, not containerEnv: `${containerEnv:PATH}` only resolves
+	// here; anywhere else the literal breaks PATH and the entrypoint dies on
+	// `cat: not found`. Lifecycle scripts don't get it and export it themselves.
+	"remoteEnv": {
+		"PATH": "/home/node/.local/bin:${containerEnv:PATH}"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"Anthropic.claude-code",
+				"mhutchie.git-graph",
+				"biomejs.biome",
+				"github.vscode-github-actions",
+				"bierner.github-markdown-preview",
+				"bierner.markdown-preview-github-styles",
+				"mechatroner.rainbow-csv",
+				"TypeScriptTeam.native-preview"
+			],
+			"settings": {
+				"js/ts.tsserver.experimental.enableProjectDiagnostics": true,
+				// The project's TypeScript, not the bundled one; the extension resolves
+				// TS 7's native `tsgo` from this path.
+				"js/ts.tsdk.path": "node_modules/typescript/lib",
+				// Machine-scoped, so not in .vscode/settings.json. Applied before attach;
+				// post-create.sh would be too late for the session that triggered the rebuild.
+				"claudeCode.allowDangerouslySkipPermissions": true,
+				"claudeCode.initialPermissionMode": "bypassPermissions"
+			}
+		}
+	},
+	"forwardPorts": [5174],
+	"portsAttributes": {
+		"5174": {
+			"label": "HTML Preview (brainstorm)",
+			"onAutoForward": "silent"
+		}
+	},
+	// Runs on the host, where includeIf picks the identity and GitHub account for
+	// this directory; .git/config carries them into the container, where the
+	// includeIf paths do not match. POSIX shell only: a Windows host runs it
+	// under cmd.exe, where the loop is a syntax error that aborts the build.
+	"initializeCommand": "for k in user.name user.email credential.https://github.com.username; do v=$(git config --get \"$k\") && git config --local \"$k\" \"$v\"; done; true",
+	// Agent tooling in on-create.sh, project setup in post-create.sh.
+	"onCreateCommand": ".devcontainer/on-create.sh",
+	"postCreateCommand": ".devcontainer/post-create.sh",
+	// The window opens on a complete project, once post-create is done, rather
+	// than while pnpm install and the rest still run in its terminal.
+	"waitFor": "postCreateCommand",
+	"postAttachCommand": ".devcontainer/post-attach.sh"
+}
