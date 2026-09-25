@@ -9,4 +9,8 @@
 - Before delivering a branch: `pnpm exec biome ci`, `pnpm typecheck`,
   `pnpm build`, `pnpm lint:package`, `pnpm test`, `pnpm test:consumers` all
   green.
+- A feat-branch is merged into `main` with `git merge --no-ff`, so the merge
+  commit marks where the piece of work starts and ends in the history. This
+  overrides `superpowers:finishing-a-development-branch`, whose plain
+  `git merge` fast-forwards when it can.
 - After the merge: update these Serena memories to match what shipped.
