@@ -64,6 +64,10 @@ describe("quote", () => {
 		expect(quote("a\\b c")).toBe('"a\\\\b c"');
 		expect(quote("l1\nl2\tx")).toBe('"l1\\nl2\\tx"');
 	});
+
+	test("escapes other control characters as \\uXXXX", () => {
+		expect(quote("a\u001Bb\u0007")).toBe('"a\\u001bb\\u0007"');
+	});
 });
 
 describe("renderLogfmt", () => {

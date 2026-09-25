@@ -13,7 +13,7 @@ const ESCAPES: Record<string, string> = {
 
 export function quote(value: string): string {
 	if (value !== "" && !NEEDS_QUOTES.test(value)) return value;
-	return `"${value.replace(/[\\"\n\r\t]/g, (char) => ESCAPES[char] ?? char)}"`;
+	return `"${value.replace(/[\\"\p{Cc}]/gu, (char) => ESCAPES[char] ?? `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`)}"`;
 }
 
 export const renderLogfmt: Renderer = (record) => {
