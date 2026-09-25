@@ -100,12 +100,12 @@ npm-facing fields:
 - Publication: `"publishConfig": { "access": "public", "provenance": true }`.
 
 Scripts: `build` (`rslib build`), `dev` (`rslib build --watch`),
-`typecheck` (`tsc --noEmit`), `lint` (`biome check`), `test` (`rstest`),
+`typecheck` (two passes, see `tsconfig.json`), `lint` (`biome check`), `test` (`rstest`),
 `lint:package` (`publint` then `attw --pack . --profile esm-only`),
 `test:consumers` (`tsx scripts/test-consumers.ts`).
 
 New devDependencies: `@rslib/core`, `@rstest/core`, `@rstest/browser`,
-`publint`, `@arethetypeswrong/cli`.
+`publint`, `@arethetypeswrong/cli`, `@types/node@^22`.
 
 - `publint` checks `package.json` against the files actually published:
   `exports` targets, `files`, condition order.
@@ -119,10 +119,14 @@ New devDependencies: `@rslib/core`, `@rstest/core`, `@rstest/browser`,
 
 - `strict: true`, `module: "esnext"`, `moduleResolution: "bundler"`,
   `target: "es2022"`, `lib: ["es2022", "dom"]`, `noEmit: true`.
-- No `@types/node`: `detect.ts` types its own global access, so the typecheck
-  flags any stray Node global in `src/`.
-- `include`: `src`, `tests`, the root config files. `exclude`:
-  `tests/consumers`.
+- `tsconfig.json` covers `src`, `tests`, `scripts` and the root config files,
+  with `types: ["node"]` (`@types/node@^22` devDependency, for `scripts/`).
+  `exclude`: `tests/consumers`.
+- `tsconfig.build.json` covers `src` alone with `types: []`. It drives the
+  `.d.ts` output and is the only program that can flag a Node global in
+  `src/`: `@rstest/core`'s declarations pull `@types/node` into any program
+  that includes `tests/` (verified in the spike).
+- `typecheck` runs both: `tsc --noEmit -p tsconfig.build.json && tsc --noEmit`.
 
 ## 2. CI workflow (`.github/workflows/ci.yml`)
 
@@ -168,8 +172,9 @@ the browser harness on that `dist/`.
 
 - **Zero warnings**: `stats.hasWarnings()` for webpack and rspack,
   `onAfterBuild` stats for Rsbuild, `build.rolldownOptions.onwarn` that
-  throws for Vite. Vite 8 does not warn about `node:*` at build time, so the
-  browser run is what catches a Node built-in leaking into the bundle.
+  throws for Vite. Vite 8 silently stubs `node:*` in a browser build; a static
+  `node:*` import in `src/` is caught by the src-only typecheck, and webpack,
+  rspack and rsbuild fail on it too.
 - **Browser run**: a shared harness, `tests/consumers/run-in-browser.mjs`
   (Playwright), runs from the repo (its Playwright and Chromium), serves the
   given directory, loads the page and reads the result the bundle stores in
