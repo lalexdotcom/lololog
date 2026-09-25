@@ -22,7 +22,14 @@
 		"ghcr.io/devcontainers/features/docker-in-docker:4": {
 			"moby": false
 		},
-		"ghcr.io/devcontainers-extra/features/apt-get-packages:1": {},
+		// actionlint runs ShellCheck over `run:` blocks only when it is on PATH.
+		"ghcr.io/devcontainers-extra/features/apt-get-packages:1": {
+			"packages": "shellcheck"
+		},
+		// Not packaged by Debian.
+		"ghcr.io/devcontainers-extra/features/actionlint:1": {
+			"version": "latest"
+		},
 		"ghcr.io/devcontainers/features/github-cli:1": {
 			"installDirectlyFromGitHubRelease": true,
 			"version": "latest"
@@ -34,9 +41,7 @@
 			"version": "latest"
 		}
 	},
-	"mounts": [
-		"source=ai-tools-config-${devcontainerId},target=/ai-tools,type=volume"
-	],
+	"mounts": ["source=ai-tools-config-${devcontainerId},target=/ai-tools,type=volume"],
 	"containerEnv": {
 		// The image sets no locale, leaving tools on POSIX/ASCII.
 		"LANG": "C.UTF-8",
@@ -60,6 +65,8 @@
 				"mhutchie.git-graph",
 				"biomejs.biome",
 				"github.vscode-github-actions",
+				// Not arahata.linter-actionlint: unmaintained since 2022.
+				"jimeh.actionlint",
 				"bierner.github-markdown-preview",
 				"bierner.markdown-preview-github-styles",
 				"mechatroner.rainbow-csv",
