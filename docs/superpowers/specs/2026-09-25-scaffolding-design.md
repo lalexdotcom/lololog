@@ -78,8 +78,10 @@ CHANGELOG.md
 
 npm-facing fields:
 
-- Identity: `name`, `version`, `description` (replaces the template
-  placeholder), `keywords`, `license` (`MIT`), `author` (kept).
+- Identity: `name`, `version`,
+  `description`: `"Universal logger: log everywhere with style and low overhead"`,
+  `keywords`: `logger`, `logging`, `log`, `universal`, `isomorphic`, `browser`,
+  `node`, `typescript`, `esm`; `license` (`MIT`), `author` (kept).
 - Links: `homepage` (`https://github.com/lalexdotcom/lololog#readme`),
   `repository` (`{ "type": "git", "url": "git+https://github.com/lalexdotcom/lololog.git" }`),
   `bugs` (`https://github.com/lalexdotcom/lololog/issues`). npm provenance
@@ -203,7 +205,7 @@ rather than intent. Nothing already stated in AGENTS.md is repeated.
 
 | Memory | Content |
 |---|---|
-| `project/overview` | Universal logger, ESM only, Node ≥ 22, runtime detection, single `node:*` helper and why the magic comments |
+| `project/overview` | Universal logger; product goals: low overhead and a pleasant look. ESM only, Node ≥ 22, runtime detection, single `node:*` helper and why the magic comments |
 | `project/stack` | pnpm, Biome, TypeScript 7, rslib, rstest + `@rstest/browser`, publint, attw, tsx, actionlint + ShellCheck (devcontainer); commands |
 | `conventions/code-style` | Relative extensionless imports, no aliases |
 | `conventions/workflow` | Every piece of work on a feat-branch, opened before the spec is committed; implementation in subagent mode by default (`superpowers:subagent-driven-development`), inline only on request; before delivery `biome ci`, `typecheck`, `test`, `build` green; after the merge, Serena memories updated |
