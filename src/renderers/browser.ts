@@ -12,15 +12,19 @@ export const BADGE_CSS = Object.fromEntries(
 	}),
 ) as Record<Level, string>;
 
+const SCOPE_CSS = "color: grey";
 const DATE_CSS = "color: lightgray";
 
 export const renderBrowser: Renderer = ({ level, time, scope, datetime, args }) => {
-	const label = scope === undefined ? LABELS[level] : `${LABELS[level]} <${scope}>`;
-	if (!datetime) return prepend(`%c${label}%c`, args, [BADGE_CSS[level], ""]);
-	return prepend(`%c${label}%c %c[${formatDatetime(time)}]%c`, args, [
-		BADGE_CSS[level],
-		"",
-		DATE_CSS,
-		"",
-	]);
+	let format = `%c${LABELS[level]}%c`;
+	const styles = [BADGE_CSS[level], ""];
+	if (scope !== undefined) {
+		format += ` %c<${scope}>%c`;
+		styles.push(SCOPE_CSS, "");
+	}
+	if (datetime) {
+		format += ` %c[${formatDatetime(time)}]%c`;
+		styles.push(DATE_CSS, "");
+	}
+	return prepend(format, args, styles);
 };

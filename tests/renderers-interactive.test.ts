@@ -98,8 +98,26 @@ describe("renderBrowser", () => {
 		]);
 	});
 
-	test("puts the scope inside the badge", () => {
-		expect(renderBrowser(record({ scope: "db" }))[0]).toBe("%cWARN <db>%c hi");
+	test("writes the scope in grey outside the badge", () => {
+		expect(renderBrowser(record({ scope: "db" }))).toEqual([
+			"%cWARN%c %c<db>%c hi",
+			BADGE_CSS.warn,
+			"",
+			"color: grey",
+			"",
+		]);
+	});
+
+	test("puts the scope before the date", () => {
+		expect(renderBrowser(record({ scope: "db", datetime: true }))).toEqual([
+			`%cWARN%c %c<db>%c %c[${DATE}]%c hi`,
+			BADGE_CSS.warn,
+			"",
+			"color: grey",
+			"",
+			"color: lightgray",
+			"",
+		]);
 	});
 
 	test("adds the date in lightgray after the badge", () => {

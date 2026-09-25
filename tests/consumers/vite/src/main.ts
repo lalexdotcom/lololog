@@ -19,6 +19,6 @@ try {
 
 const [format, badge] = calls[0] ?? [];
 window.__result =
-	format === "%cWARN <app>%c hello %s" && String(badge).includes("background-color: orange")
+	format === "%cWARN%c %c<app>%c hello %s" && String(badge).includes("background-color: orange")
 		? "browser"
 		: `unexpected: ${JSON.stringify(calls)}`;

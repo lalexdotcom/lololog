@@ -172,10 +172,11 @@ by one `Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle:
 
 ### `browser`
 
-- Colour on: `"%cWARN <db>%c %c[25/09/2026 10:00:00]%c " + arg0`, with the
-  badge CSS `color: <text>; background-color: <bg>; padding: 1px 4px;
-  border-radius: 4px`, the date CSS `color: lightgray`, and empty strings to
-  reset. Without a scope: `WARN`; without datetime: no date block.
+- Colour on: `"%cWARN%c %c<db>%c %c[25/09/2026 10:00:00]%c " + arg0`, with
+  the badge CSS `color: <text>; background-color: <bg>; padding: 1px 4px;
+  border-radius: 4px`, the scope CSS `color: grey`, the date CSS
+  `color: lightgray`, and empty strings to reset. As in the TTY, the scope sits
+  outside the badge. Without a scope or datetime, that block is absent.
 - Colour off: `"[WARN <db>] [25/09/2026 10:00:00] " + arg0`, no `%c`.
 
 ### `tty`
