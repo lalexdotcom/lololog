@@ -76,12 +76,32 @@ CHANGELOG.md
 
 ### `package.json`
 
-- `"type": "module"`, `"sideEffects": false`, `"files": ["dist"]`,
-  `"engines": { "node": ">=22" }`.
-- `"exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } }`.
-- Scripts: `build` (`rslib build`), `dev` (`rslib build --watch`),
-  `typecheck` (`tsc --noEmit`), `lint` (`biome check`), `test` (`rstest`).
-- New devDependencies: `@rslib/core`, `@rstest/core`, `@rstest/browser`.
+npm-facing fields:
+
+- Identity: `name`, `version`, `description` (replaces the template
+  placeholder), `keywords`, `license` (`MIT`), `author` (kept).
+- Links: `homepage` (`https://github.com/lalexdotcom/lololog#readme`),
+  `repository` (`{ "type": "git", "url": "git+https://github.com/lalexdotcom/lololog.git" }`),
+  `bugs` (`https://github.com/lalexdotcom/lololog/issues`). npm provenance
+  requires `repository` to match the publishing GitHub repo.
+- Resolution: `"type": "module"`,
+  `"exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } }`,
+  top-level `"types": "./dist/index.d.ts"`, `"files": ["dist"]`,
+  `"sideEffects": false`, `"engines": { "node": ">=22" }`.
+- Publication: `"publishConfig": { "access": "public", "provenance": true }`.
+
+Scripts: `build` (`rslib build`), `dev` (`rslib build --watch`),
+`typecheck` (`tsc --noEmit`), `lint` (`biome check`), `test` (`rstest`),
+`lint:package` (`publint` then `attw --pack . --profile esm-only`).
+
+New devDependencies: `@rslib/core`, `@rstest/core`, `@rstest/browser`,
+`publint`, `@arethetypeswrong/cli`.
+
+- `publint` checks `package.json` against the files actually published:
+  `exports` targets, `files`, condition order.
+- `attw` checks that TypeScript resolves the types correctly under every
+  `moduleResolution` mode a consumer may use; `--profile esm-only` skips the
+  `require()` modes the package does not support.
 - `pnpm-workspace.yaml` `allowBuilds` gains any build script the new
   dependencies require, reviewed one by one.
 
@@ -102,8 +122,8 @@ release). `concurrency` per ref with `cancel-in-progress`.
 Jobs:
 
 1. **`check`** (Node 24): `pnpm install --frozen-lockfile`, `biome ci`,
-   `pnpm typecheck` (src + tests), `pnpm build`, `pnpm pack`, upload the
-   tarball as an artifact.
+   `pnpm typecheck` (src + tests), `pnpm build`, `pnpm lint:package`,
+   `pnpm pack`, upload the tarball as an artifact.
 2. **`test`** (matrix Node 22 / 24): rstest `node` project on both versions.
    The `browser` project runs on one matrix entry only, after
    `pnpm exec playwright install --with-deps chromium`; the browser result
@@ -161,7 +181,9 @@ Triggers: tags `v*.*.*` and `v*.*.*-*`.
 Jobs:
 
 1. **`ci`**: `uses: ./.github/workflows/ci.yml`. A tag never publishes red code.
-2. **`release`** (`needs: ci`, `permissions: contents: write`):
+2. **`release`** (`needs: ci`, `permissions: contents: write, id-token: write`;
+   `id-token` is what npm provenance signs with, the action publishing through
+   `npm publish` which reads `publishConfig.provenance`):
    1. checkout;
    2. inline shell (`awk`) extracts the `## [x.y.z]` section matching the tag
       (without the `v`) into `$RUNNER_TEMP/release-notes.md`. The job fails if
@@ -182,7 +204,7 @@ rather than intent. Nothing already stated in AGENTS.md is repeated.
 | Memory | Content |
 |---|---|
 | `project/overview` | Universal logger, ESM only, Node ≥ 22, runtime detection, single `node:*` helper and why the magic comments |
-| `project/stack` | pnpm, Biome, TypeScript 7, rslib, rstest + `@rstest/browser`, tsx; commands |
+| `project/stack` | pnpm, Biome, TypeScript 7, rslib, rstest + `@rstest/browser`, publint, attw, tsx, actionlint + ShellCheck (devcontainer); commands |
 | `conventions/code-style` | Relative extensionless imports, no aliases |
 | `conventions/workflow` | Every piece of work on a feat-branch, opened before the spec is committed; implementation in subagent mode by default (`superpowers:subagent-driven-development`), inline only on request; before delivery `biome ci`, `typecheck`, `test`, `build` green; after the merge, Serena memories updated |
 | `conventions/testing` | `tests/` sibling of `src/`, node and browser projects, consumer fixtures and when to add one |
@@ -198,6 +220,7 @@ Further conventions from the user go under `conventions/<topic>`.
 - The built `dist/index.js` still carries the `webpackIgnore` / `@vite-ignore`
   comments on the `node:*` dynamic import.
 - Every consumer fixture passes locally against a packed tarball.
-- `actionlint` (Docker image `rhysd/actionlint`, which bundles ShellCheck;
-  not installed in the devcontainer) reports nothing on both workflows.
+- `pnpm lint:package` passes (publint and attw).
+- `actionlint` reports nothing on both workflows, ShellCheck included (both
+  installed by the devcontainer).
 - The Serena memories listed above exist.
