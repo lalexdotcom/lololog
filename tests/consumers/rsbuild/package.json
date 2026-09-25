@@ -1,0 +1,11 @@
+{
+	"name": "consumer-rsbuild",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"check": "node build.mjs"
+	},
+	"devDependencies": {
+		"@rsbuild/core": "^2.2.9"
+	}
+}

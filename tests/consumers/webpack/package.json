@@ -1,0 +1,11 @@
+{
+	"name": "consumer-webpack",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"check": "node build.mjs"
+	},
+	"devDependencies": {
+		"webpack": "^5.111.1"
+	}
+}

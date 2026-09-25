@@ -1,0 +1,12 @@
+{
+	"name": "consumer-vite",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"check": "tsc && vite build"
+	},
+	"devDependencies": {
+		"typescript": "^7.0.2",
+		"vite": "^8.3.1"
+	}
+}

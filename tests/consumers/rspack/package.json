@@ -1,0 +1,11 @@
+{
+	"name": "consumer-rspack",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"check": "node build.mjs"
+	},
+	"devDependencies": {
+		"@rspack/core": "^2.2.7"
+	}
+}
