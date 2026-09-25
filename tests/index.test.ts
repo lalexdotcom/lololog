@@ -1,13 +1,21 @@
 import { describe, expect, test } from "@rstest/core";
-import { describeRuntime } from "../src/index";
+import * as api from "../src/index";
+import { L, LEVELS, logger } from "../src/index";
 
-describe("describeRuntime", () => {
-	test("names the runtime, with the platform under Node", () => {
-		if (typeof window === "undefined") {
-			expect(describeRuntime()).toMatch(/^node:\w+$/);
-			expect(describeRuntime()).not.toBe("node:unknown");
-		} else {
-			expect(describeRuntime()).toBe("browser");
-		}
+describe("public entry", () => {
+	test("exports the root under a short and a long name", () => {
+		expect(L).toBe(logger);
+	});
+
+	test("stores the root under Symbol.for('lololog')", () => {
+		expect((globalThis as Record<symbol, unknown>)[Symbol.for("lololog")]).toBe(L);
+	});
+
+	test("exports the levels", () => {
+		expect(LEVELS.warn).toBe(13);
+	});
+
+	test("exports nothing else at runtime", () => {
+		expect(Object.keys(api).sort()).toEqual(["L", "LEVELS", "logger"]);
 	});
 });
