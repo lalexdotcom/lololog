@@ -30,11 +30,12 @@ download.update({ done: 3, total: files.length });
 download.success("Downloaded"); // or .fail(), or .close(message, { status: "skipped" })
 ```
 
-In a terminal, spinners stay at the bottom and animate in place while other
-lines scroll above them. Elsewhere, each spinner writes a line every
-`L.spinnerInterval` milliseconds (5000 by default, 80 in a terminal; `0`
-writes only the first and last lines), and json/logfmt lines carry a
-`spinner` field.
+In a terminal with `pretty` output (the default), spinners stay at the bottom
+and animate in place every `L.spinnerInterval` milliseconds (80 by default)
+while other lines scroll above them. Elsewhere — including `json`/`logfmt` on
+a terminal — each spinner writes a line every `L.spinnerInterval`
+milliseconds (5000 by default; `0` writes only the first and last lines), and
+json/logfmt lines carry a `spinner` field.
 
 ## Install
 
