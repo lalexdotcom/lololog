@@ -20,6 +20,7 @@ export const renderLogfmt: Renderer = (record) => {
 	const entry = toEntry(record);
 	let line = `time=${entry.time} level=${entry.level} severity=${entry.severity}`;
 	if (entry.scope !== undefined) line += ` scope=${quote(entry.scope)}`;
+	if (entry.spinner !== undefined) line += ` spinner=${quote(JSON.stringify(entry.spinner))}`;
 	line += ` msg=${quote(entry.msg)}`;
 	if (entry.data !== undefined) line += ` data=${quote(serialize(entry.data))}`;
 	return [line];

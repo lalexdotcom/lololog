@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, rs, test } from "@rstest/core"
 import { LEVEL_NAMES } from "../src/levels";
 import { createRootLogger, type Environment } from "../src/logger";
 import { BADGES } from "../src/renderers/tty";
+import { fakeTerminal } from "./fake-terminal";
 
 const PIPE: Environment = { isBrowser: false, tty: false, noColor: false };
 const TERMINAL: Environment = { isBrowser: false, tty: true, noColor: false };
@@ -24,12 +25,22 @@ function entries(): Array<Record<string, unknown>> {
 }
 
 describe("root logger", () => {
-	test("has one method per level, shared on the prototype", () => {
+	test("owns one method per level, bound to it", () => {
 		const root = createRootLogger(PIPE);
+		const db = root.scope("db");
 		for (const level of LEVEL_NAMES) {
-			expect(typeof root[level]).toBe("function");
-			expect(Object.hasOwn(root, level)).toBe(false);
+			expect(Object.hasOwn(root, level)).toBe(true);
+			expect(root[level]).not.toBe(db[level]);
 		}
+		const { info } = root;
+		info("detached");
+		expect(entries()[0]).toMatchObject({ msg: "detached" });
+	});
+
+	test("can be passed as a callback", async () => {
+		const db = createRootLogger(PIPE).scope("db");
+		await Promise.reject(new Error("boom")).catch(db.error);
+		expect(entries()[0]).toMatchObject({ level: "error", scope: "db" });
 	});
 
 	test("starts enabled, at wth, without datetime, format or NO_COLOR", () => {
@@ -116,6 +127,27 @@ describe("output selection", () => {
 	test("draws a %c badge in the browser", () => {
 		createRootLogger({ isBrowser: true, tty: false, noColor: false }).info("hi");
 		expect(lines[0]?.[0]).toBe("%cINFO%c hi");
+	});
+
+	test("writes to stdout instead of console.log on a TTY it can drive", () => {
+		const fake = fakeTerminal();
+		createRootLogger({ ...TERMINAL, terminal: fake.terminal }).info("hi");
+		expect(lines).toEqual([]);
+		expect(fake.out).toEqual([`${BADGES.info} hi\n`]);
+	});
+
+	test("keeps console.log for json and logfmt on a TTY, and in the browser", () => {
+		const fake = fakeTerminal();
+		const root = createRootLogger({ ...TERMINAL, terminal: fake.terminal });
+		root.format = "json";
+		root.info("a");
+		root.format = "logfmt";
+		root.info("b");
+		createRootLogger({ isBrowser: true, tty: true, noColor: false, terminal: fake.terminal }).info(
+			"c",
+		);
+		expect(fake.out).toEqual([]);
+		expect(lines).toHaveLength(3);
 	});
 });
 

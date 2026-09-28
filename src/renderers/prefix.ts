@@ -14,8 +14,8 @@ export function formatDatetime(time: number): string {
 
 /**
  * Concatenated to a string first argument, so console.log still reads the caller's %s/%o as
- * its format; passed on its own otherwise. `styles` are the %c values the prefix itself
- * consumes, so they must come right after the format, before the caller's arguments.
+ * its format; passed on its own otherwise. `styles` are the values the prefix's own %c and %s
+ * consume, so they must come right after the format, before the caller's arguments.
  */
 export function prepend(
 	prefix: string,

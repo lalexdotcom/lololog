@@ -20,6 +20,7 @@ export const STYLES = {
 		dodgerblue: [38, 5, 33],
 		cyan: 36,
 		mediumpurple: [38, 5, 135],
+		turquoise: [38, 5, 80],
 	},
 	// green and grey sit on the CSS shade: ANSI 40 and 249 are so light that white text drops to
 	// a 2:1 contrast, which VS Code's minimumContrastRatio then silently repaints.

@@ -2,7 +2,7 @@ import { describe, expect, test } from "@rstest/core";
 import { BADGE_CSS, renderBrowser } from "../src/renderers/browser";
 import { formatDatetime, LABELS, prepend } from "../src/renderers/prefix";
 import { renderPretty } from "../src/renderers/pretty";
-import type { LogRecord } from "../src/renderers/record";
+import type { LogRecord, SpinnerView } from "../src/renderers/record";
 import { BADGES, center, renderTty } from "../src/renderers/tty";
 
 const TIME = Date.UTC(2026, 8, 25, 10);
@@ -19,6 +19,27 @@ function record(overrides: Partial<LogRecord> = {}): LogRecord {
 		args: ["hi"],
 		...overrides,
 	};
+}
+
+const T = "\u001B[38;5;80m";
+const GR = "\u001B[32m";
+const RD = "\u001B[31m";
+const LG = "\u001B[38;5;252m";
+const R = "\u001B[0m";
+
+function view(overrides: Partial<SpinnerView> = {}): SpinnerView {
+	return {
+		id: 1,
+		status: "running",
+		progress: { kind: "none" },
+		glyph: "⠋",
+		color: "turquoise",
+		...overrides,
+	};
+}
+
+function spinning(spinner: SpinnerView): LogRecord {
+	return record({ args: ["%s", "load"], spinner });
 }
 
 describe("prefix helpers", () => {
@@ -127,6 +148,113 @@ describe("renderBrowser", () => {
 			"",
 			"color: lightgray",
 			"",
+		]);
+	});
+});
+
+describe("renderTty spinner", () => {
+	test("draws an unbounded spinner as its glyph in parentheses, in its colour", () => {
+		expect(renderTty(spinning(view()))).toEqual([`${BADGES.warn} ${T}(⠋)${R} %s`, "load"]);
+	});
+
+	test("leaves the default text colour alone", () => {
+		expect(renderTty(spinning(view({ status: "closed", glyph: "●", color: undefined })))).toEqual([
+			`${BADGES.warn} (●) %s`,
+			"load",
+		]);
+	});
+
+	test("draws a running bounded spinner as a 10-cell bar and a padded label, no glyph", () => {
+		const progress = { kind: "ratio", ratio: 0.42 } as const;
+		expect(renderTty(spinning(view({ progress })))).toEqual([
+			`${BADGES.warn} ${T}━━━━${R}${LG}──────${R}  42% %s`,
+			"load",
+		]);
+	});
+
+	test("puts the final glyph before an 8-cell bar", () => {
+		const done = { kind: "ratio", ratio: 1 } as const;
+		expect(
+			renderTty(spinning(view({ status: "success", progress: done, glyph: "✔", color: "green" }))),
+		).toEqual([`${BADGES.warn} ${GR}✔${R} ${GR}━━━━━━━━${R} 100% %s`, "load"]);
+		const count = { kind: "count", done: 7, total: 120 } as const;
+		expect(
+			renderTty(spinning(view({ status: "fail", progress: count, glyph: "✖", color: "red" }))),
+		).toEqual([`${BADGES.warn} ${RD}✖${R} ${RD}━${R}${LG}───────${R}   7/120 %s`, "load"]);
+	});
+});
+
+describe("renderPretty spinner", () => {
+	test("draws an unbounded spinner as its glyph in parentheses", () => {
+		expect(renderPretty(spinning(view({ glyph: "↻" })))).toEqual(["[WARN] (↻) %s", "load"]);
+	});
+
+	test("draws a running bounded spinner as its unpadded label in parentheses", () => {
+		expect(renderPretty(spinning(view({ progress: { kind: "ratio", ratio: 0.42 } })))).toEqual([
+			"[WARN] (42%) %s",
+			"load",
+		]);
+	});
+
+	test("puts the final glyph before the label", () => {
+		const count = { kind: "count", done: 7, total: 120 } as const;
+		expect(renderPretty(spinning(view({ status: "fail", progress: count, glyph: "✖" })))).toEqual([
+			"[WARN] ✖ (7/120) %s",
+			"load",
+		]);
+	});
+});
+
+function barCss(color: string, pct: number): string {
+	return `font-family: monospace; background: linear-gradient(to right, ${color} 0%, ${color} ${pct}%, lightgrey ${pct}%, lightgrey 100%); padding: 0px 48px; line-height: 0.5; border-radius: 2px`;
+}
+
+describe("renderBrowser spinner", () => {
+	test("draws an unbounded spinner as a monospace glyph in its colour", () => {
+		expect(renderBrowser(spinning(view({ glyph: "↻" })))).toEqual([
+			"%cWARN%c %c(%s)%c %s",
+			BADGE_CSS.warn,
+			"",
+			"font-family: monospace; color: turquoise",
+			"↻",
+			"",
+			"load",
+		]);
+	});
+
+	test("draws a running bounded spinner as a gradient bar and a padded monospace label", () => {
+		expect(renderBrowser(spinning(view({ progress: { kind: "ratio", ratio: 0.42 } })))).toEqual([
+			"%cWARN%c %c %c %c%s%c %s",
+			BADGE_CSS.warn,
+			"",
+			barCss("turquoise", 42),
+			"",
+			"font-family: monospace",
+			" 42%",
+			"",
+			"load",
+		]);
+	});
+
+	test("puts the final glyph before the full-width bar, currentColor without a colour", () => {
+		const count = { kind: "count", done: 7, total: 120 } as const;
+		expect(
+			renderBrowser(
+				spinning(view({ status: "closed", progress: count, glyph: "●", color: undefined })),
+			),
+		).toEqual([
+			"%cWARN%c %c%s%c %c %c %c%s%c %s",
+			BADGE_CSS.warn,
+			"",
+			"font-family: monospace",
+			"●",
+			"",
+			barCss("currentColor", 5),
+			"",
+			"font-family: monospace",
+			"  7/120",
+			"",
+			"load",
 		]);
 	});
 });

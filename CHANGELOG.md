@@ -9,13 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Logger `L` (also exported as `logger`): one method per level (`wth`, `debug`,
-  `verb`, `info`, `success`, `notice`, `warn`, `error`, `crit`, `alert`,
-  `emerg`), severities mapped to OpenTelemetry (`LEVELS`), options `enabled`,
-  `level`, `datetime`, `color` and `format` (`pretty`, `json`, `logfmt`).
+- Logger `L` (also exported as `logger`): one method per level, bound to its
+  logger so it can be passed as a callback (`wth`, `debug`, `verb`, `info`,
+  `success`, `notice`, `warn`, `error`, `crit`, `alert`, `emerg`), severities
+  mapped to OpenTelemetry (`LEVELS`), options `enabled`, `level`, `datetime`,
+  `color` and `format` (`pretty`, `json`, `logfmt`).
 - `L.scope(name)`: named loggers that the root can silence or restrict.
-- Output for browser devtools (styled badges), terminals (coloured badges),
-  and pipes (`json` by default, `logfmt` or plain `pretty` on request).
+- Output for browser devtools (styled badges), terminals (coloured badges,
+  written with `process.stdout.write`, not `console.log`), and pipes (`json`
+  by default, `logfmt` or plain `pretty` on request).
+- Spinners: `L.<level>.spin(message, options?)` returns a spinner with
+  `update`, `close`, `success` and `fail`, unbounded or with a progress
+  (`{ progress }` or `{ done, total }`), a custom `glyph` and `color`, and a
+  free `status` on `close`. On a terminal with `pretty` output, spinners stay
+  at the bottom and animate in place, while `process.stdout.write` /
+  `process.stderr.write` are wrapped so other output lands above them;
+  elsewhere they write a line per tick, and json/logfmt lines carry a
+  `spinner` field with the spinner's `id`, so a collector can rebuild its
+  progress across lines. `L.spinnerInterval` sets the tick (80 ms while
+  animating in place, 5 s elsewhere; `0` writes the first and last lines
+  only).
 
 ### Removed
 

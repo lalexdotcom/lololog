@@ -31,4 +31,8 @@ describe("STYLES", () => {
 	test("provides a dimgray background in the shade of its CSS namesake", () => {
 		expect(STYLES["background-color"].dimgray).toEqual([48, 5, 242]);
 	});
+
+	test("provides turquoise as text, on the 256-colour entry nearest to CSS #40e0d0", () => {
+		expect(colorize("x", { color: "turquoise" })).toBe("\u001B[38;5;80mx\u001B[0m");
+	});
 });
