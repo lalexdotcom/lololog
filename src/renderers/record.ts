@@ -3,6 +3,7 @@ import type { Progress } from "../spinner/progress";
 import type { Color } from "../style/ansi";
 
 export interface SpinnerView {
+	id: number;
 	status: string;
 	progress: Progress;
 	glyph: string;

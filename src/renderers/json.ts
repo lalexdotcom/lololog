@@ -4,6 +4,7 @@ import { LEVELS } from "../levels";
 import type { LogRecord, Renderer, SpinnerView } from "./record";
 
 export interface SpinnerField {
+	id: number;
 	status: string;
 	progress?: number;
 	done?: number;
@@ -20,10 +21,10 @@ export interface Entry {
 	data: unknown;
 }
 
-function spinnerField({ status, progress }: SpinnerView): SpinnerField {
-	if (progress.kind === "ratio") return { status, progress: progress.ratio };
-	if (progress.kind === "count") return { status, done: progress.done, total: progress.total };
-	return { status };
+function spinnerField({ id, status, progress }: SpinnerView): SpinnerField {
+	if (progress.kind === "ratio") return { id, status, progress: progress.ratio };
+	if (progress.kind === "count") return { id, status, done: progress.done, total: progress.total };
+	return { id, status };
 }
 
 // Field order is output order. An undefined scope, spinner or data is dropped by JSON.stringify

@@ -35,7 +35,8 @@ and animate in place every `L.spinnerInterval` milliseconds (80 by default)
 while other lines scroll above them. Elsewhere — including `json`/`logfmt` on
 a terminal — each spinner writes a line every `L.spinnerInterval`
 milliseconds (5000 by default; `0` writes only the first and last lines), and
-json/logfmt lines carry a `spinner` field.
+json/logfmt lines carry a `spinner` field with the spinner's `id`, so a
+collector can rebuild its progress from its lines.
 
 ## Install
 

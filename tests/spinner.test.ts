@@ -49,7 +49,7 @@ describe("spin", () => {
 			expect.objectContaining({
 				level: "debug",
 				msg: "load",
-				spinner: { status: "running", done: 0, total: 3 },
+				spinner: { id: 1, status: "running", done: 0, total: 3 },
 			}),
 		]);
 	});
@@ -73,8 +73,8 @@ describe("spin", () => {
 		root.level = "error";
 		spinner.success();
 		expect(entries().map((entry) => entry.spinner)).toEqual([
-			{ status: "running" },
-			{ status: "success" },
+			{ id: 1, status: "running" },
+			{ id: 1, status: "success" },
 		]);
 	});
 
@@ -112,6 +112,28 @@ describe("spin", () => {
 	});
 });
 
+describe("spinner id", () => {
+	test("stays stable across a spinner's life, increments per scope of the same root, and resets on a new root", () => {
+		const root = createRootLogger(PIPE);
+		const spinner = root.info.spin("a");
+		rs.advanceTimersByTime(5000);
+		spinner.success();
+		expect(entries().map((entry) => (entry.spinner as { id: number }).id)).toEqual([1, 1, 1]);
+
+		const second = root.scope("db").info.spin("b");
+		second.close();
+		expect(
+			entries()
+				.slice(3)
+				.map((entry) => (entry.spinner as { id: number }).id),
+		).toEqual([2, 2]);
+
+		const other = createRootLogger(PIPE);
+		other.info.spin("c");
+		expect(entries().at(-1)).toMatchObject({ spinner: { id: 1 } });
+	});
+});
+
 describe("null options", () => {
 	test("are tolerated like undefined, not read as an object", () => {
 		const root = createRootLogger(PIPE);
@@ -130,7 +152,10 @@ describe("update and heartbeat", () => {
 		spinner.update("b", { progress: 0.5 });
 		expect(lines).toHaveLength(1);
 		rs.advanceTimersByTime(5000);
-		expect(entries()[1]).toMatchObject({ msg: "b", spinner: { status: "running", progress: 0.5 } });
+		expect(entries()[1]).toMatchObject({
+			msg: "b",
+			spinner: { id: 1, status: "running", progress: 0.5 },
+		});
 	});
 
 	test("keeps the progress when an update carries none", () => {
@@ -142,7 +167,7 @@ describe("update and heartbeat", () => {
 		rs.advanceTimersByTime(5000);
 		expect(entries()[1]).toMatchObject({
 			msg: "b",
-			spinner: { status: "running", done: 4, total: 10 },
+			spinner: { id: 1, status: "running", done: 4, total: 10 },
 		});
 	});
 
@@ -167,10 +192,10 @@ describe("ending", () => {
 		ko.update({ done: 4, total: 10 });
 		ko.fail();
 		expect(entries().map(({ msg, spinner }) => ({ msg, spinner }))).toEqual([
-			{ msg: "a", spinner: { status: "running", done: 0, total: 10 } },
-			{ msg: "done", spinner: { status: "success", done: 10, total: 10 } },
-			{ msg: "b", spinner: { status: "running", done: 0, total: 10 } },
-			{ msg: "b", spinner: { status: "fail", done: 4, total: 10 } },
+			{ msg: "a", spinner: { id: 1, status: "running", done: 0, total: 10 } },
+			{ msg: "done", spinner: { id: 1, status: "success", done: 10, total: 10 } },
+			{ msg: "b", spinner: { id: 2, status: "running", done: 0, total: 10 } },
+			{ msg: "b", spinner: { id: 2, status: "fail", done: 4, total: 10 } },
 		]);
 	});
 
@@ -183,7 +208,11 @@ describe("ending", () => {
 			entries()
 				.filter((_, index) => index % 2 === 1)
 				.map((entry) => entry.spinner),
-		).toEqual([{ status: "closed" }, { status: "skipped" }, { status: "closed" }]);
+		).toEqual([
+			{ id: 1, status: "closed" },
+			{ id: 2, status: "skipped" },
+			{ id: 3, status: "closed" },
+		]);
 	});
 
 	test("draws the method's defaults, which options override", () => {
@@ -211,7 +240,7 @@ describe("ending", () => {
 	test("works with detached methods, printing an error passed to fail", async () => {
 		const spinner = createRootLogger(PIPE).info.spin("a");
 		await Promise.reject(new Error("boom")).then(spinner.success, spinner.fail);
-		expect(entries()[1]).toMatchObject({ msg: "Error: boom", spinner: { status: "fail" } });
+		expect(entries()[1]).toMatchObject({ msg: "Error: boom", spinner: { id: 1, status: "fail" } });
 	});
 });
 
@@ -318,7 +347,7 @@ describe("on a terminal", () => {
 		expect(fake.out.at(-1)).toBe(`${up(1)}${SHOW}`);
 		rs.advanceTimersByTime(5000);
 		expect(entries()).toEqual([
-			expect.objectContaining({ msg: "a", spinner: { status: "running" } }),
+			expect.objectContaining({ msg: "a", spinner: { id: 1, status: "running" } }),
 		]);
 	});
 });

@@ -25,8 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   at the bottom and animate in place, while `process.stdout.write` /
   `process.stderr.write` are wrapped so other output lands above them;
   elsewhere they write a line per tick, and json/logfmt lines carry a
-  `spinner` field. `L.spinnerInterval` sets the tick (80 ms while animating
-  in place, 5 s elsewhere; `0` writes the first and last lines only).
+  `spinner` field with the spinner's `id`, so a collector can rebuild its
+  progress across lines. `L.spinnerInterval` sets the tick (80 ms while
+  animating in place, 5 s elsewhere; `0` writes the first and last lines
+  only).
 
 ### Removed
 

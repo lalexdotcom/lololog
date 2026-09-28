@@ -159,6 +159,8 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 	#renderer: Renderer;
 	#sink: Sink;
 	readonly #spinners = new Set<SpinnerImpl>();
+	// Collectors match a spinner's lines by this id, so it must survive the spinner leaving #spinners.
+	#nextSpinnerId = 1;
 	#interval: number | undefined;
 	#timer: ReturnType<typeof setInterval> | undefined;
 
@@ -236,7 +238,7 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 		message: string,
 		options: InitialSpinnerOptions | undefined,
 	): Spinner {
-		const spinner = new SpinnerImpl(this, origin, String(message), options);
+		const spinner = new SpinnerImpl(this, origin, this.#nextSpinnerId++, String(message), options);
 		if (this.#period() === 0) {
 			this.#sink.log(this.#render(spinner, spinner.view(false), spinner.message));
 			return spinner;

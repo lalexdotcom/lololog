@@ -29,6 +29,7 @@ const R = "\u001B[0m";
 
 function view(overrides: Partial<SpinnerView> = {}): SpinnerView {
 	return {
+		id: 1,
 		status: "running",
 		progress: { kind: "none" },
 		glyph: "⠋",

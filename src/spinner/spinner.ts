@@ -63,6 +63,7 @@ export const NOOP_SPINNER: Spinner = Object.freeze({
 
 export class SpinnerImpl implements Spinner {
 	readonly origin: SpinnerOrigin;
+	readonly id: number;
 	message: string;
 	readonly #host: SpinnerHost;
 	#progress: Progress = NO_PROGRESS;
@@ -76,11 +77,13 @@ export class SpinnerImpl implements Spinner {
 	constructor(
 		host: SpinnerHost,
 		origin: SpinnerOrigin,
+		id: number,
 		message: string,
 		options: InitialSpinnerOptions | undefined,
 	) {
 		this.#host = host;
 		this.origin = origin;
+		this.id = id;
 		this.message = message;
 		this.#apply(options);
 		// The initial line already showed frame 0.
@@ -117,6 +120,7 @@ export class SpinnerImpl implements Spinner {
 
 	view(live: boolean): SpinnerView {
 		return {
+			id: this.id,
 			status: "running",
 			progress: this.#progress,
 			glyph: frameAt(this.#frames, this.#index, live),
@@ -147,6 +151,7 @@ export class SpinnerImpl implements Spinner {
 		this.#host.finish(
 			this,
 			{
+				id: this.id,
 				status: requested === "running" ? "closed" : requested,
 				progress: ending.fill && !given ? completed(progress) : progress,
 				glyph,

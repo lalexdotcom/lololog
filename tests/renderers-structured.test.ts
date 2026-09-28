@@ -21,6 +21,7 @@ function spinning(spinner: SpinnerView, message = "load"): LogRecord {
 }
 
 const running: SpinnerView = {
+	id: 3,
 	status: "running",
 	progress: { kind: "count", done: 7, total: 120 },
 	glyph: "⠋",
@@ -108,7 +109,7 @@ describe("renderLogfmt", () => {
 describe("spinner field", () => {
 	test("json puts it between scope and msg", () => {
 		expect(renderJson(spinning(running))).toEqual([
-			'{"time":"2026-09-25T10:00:00.000Z","level":"warn","severity":13,"scope":"db","spinner":{"status":"running","done":7,"total":120},"msg":"load"}',
+			'{"time":"2026-09-25T10:00:00.000Z","level":"warn","severity":13,"scope":"db","spinner":{"id":3,"status":"running","done":7,"total":120},"msg":"load"}',
 		]);
 	});
 
@@ -116,11 +117,15 @@ describe("spinner field", () => {
 		const ratio = renderJson(
 			spinning({ ...running, status: "success", progress: { kind: "ratio", ratio: 1 / 3 } }),
 		);
-		expect(JSON.parse(String(ratio[0])).spinner).toEqual({ status: "success", progress: 1 / 3 });
+		expect(JSON.parse(String(ratio[0])).spinner).toEqual({
+			id: 3,
+			status: "success",
+			progress: 1 / 3,
+		});
 		const bare = renderJson(
 			spinning({ ...running, status: "skipped", progress: { kind: "none" } }),
 		);
-		expect(JSON.parse(String(bare[0])).spinner).toEqual({ status: "skipped" });
+		expect(JSON.parse(String(bare[0])).spinner).toEqual({ id: 3, status: "skipped" });
 	});
 
 	test("json keeps a message with specifiers literal", () => {
@@ -130,7 +135,7 @@ describe("spinner field", () => {
 
 	test("logfmt writes it as one quoted JSON value", () => {
 		expect(renderLogfmt(spinning(running))).toEqual([
-			'time=2026-09-25T10:00:00.000Z level=warn severity=13 scope=db spinner="{\\"status\\":\\"running\\",\\"done\\":7,\\"total\\":120}" msg=load',
+			'time=2026-09-25T10:00:00.000Z level=warn severity=13 scope=db spinner="{\\"id\\":3,\\"status\\":\\"running\\",\\"done\\":7,\\"total\\":120}" msg=load',
 		]);
 	});
 });

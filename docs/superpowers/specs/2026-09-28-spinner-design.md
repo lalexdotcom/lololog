@@ -11,10 +11,9 @@ success, a failure or a neutral close. On an interactive terminal the
 spinners stay pinned at the bottom and animate in place; everywhere else
 they emit a line per tick.
 
-Out of scope: a spinner going back from bounded to unbounded, spinner ids in
-structured output, catching output from child processes spawned with
-`stdio: "inherit"`, terminals using absolute positioning or the alternate
-screen.
+Out of scope: a spinner going back from bounded to unbounded, catching
+output from child processes spawned with `stdio: "inherit"`, terminals using
+absolute positioning or the alternate screen.
 
 ## Constraints
 
@@ -44,7 +43,7 @@ screen.
 | Cursor | Hidden while the zone is on screen, restored on `process` `exit` |
 | Unbounded glyph | Braille frames in the `LiveSink`, `↻` elsewhere; overridable |
 | Colours | Running turquoise, success green, fail red, close default text colour |
-| json/logfmt | One `spinner` field: `{status, progress?}` or `{status, done, total}` |
+| json/logfmt | One `spinner` field: `{id, status, progress?}` or `{id, status, done, total}`; `id` is a per-root counter starting at 1 |
 
 ## 1. Public API
 
@@ -215,19 +214,23 @@ front: every tick is its own line, there is no zone to align.
 
 Every spinner line (initial, tick, final) carries a `spinner` field right
 after `scope`: `time`, `level`, `severity`, `scope`, `spinner`, `msg`,
-`data`. Its value is `{status}`, `{status, progress}` or
-`{status, done, total}`, `status` being `"running"` or the closing status
-(`"closed"`, `"success"`, `"fail"` or the caller's); `progress` is the clamped ratio, unrounded. `msg` is the current
-message; `data` is absent.
+`data`. Its value is `{id, status}`, `{id, status, progress}` or
+`{id, status, done, total}`, `id` first: a counter the root owns, shared
+with its scopes, starting at 1 for the root's first spinner and stable for
+that spinner's whole life — this is what lets a collector rebuild one
+spinner's progress from its lines. `status` is `"running"` or the closing
+status (`"closed"`, `"success"`, `"fail"` or the caller's); `progress` is
+the clamped ratio, unrounded. `msg` is the current message; `data` is
+absent.
 
 ```json
-{"time":"2026-09-28T12:00:05.000Z","level":"debug","severity":5,"scope":"db","spinner":{"status":"running","done":7,"total":120},"msg":"Migrating"}
+{"time":"2026-09-28T12:00:05.000Z","level":"debug","severity":5,"scope":"db","spinner":{"id":3,"status":"running","done":7,"total":120},"msg":"Migrating"}
 ```
 
 logfmt writes the same object as JSON in a single quoted field:
 
 ```
-time=2026-09-28T12:00:05.000Z level=debug severity=5 scope=db spinner="{\"status\":\"running\",\"done\":7,\"total\":120}" msg=Migrating
+time=2026-09-28T12:00:05.000Z level=debug severity=5 scope=db spinner="{\"id\":3,\"status\":\"running\",\"done\":7,\"total\":120}" msg=Migrating
 ```
 
 ## 4. Sinks and the live zone
