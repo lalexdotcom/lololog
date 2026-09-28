@@ -4,6 +4,7 @@ import { isLevel, LEVEL_NAMES, LEVELS, type Level } from "./levels";
 import type { Renderer } from "./renderers/record";
 import { type Format, isFormat, selectRenderer } from "./renderers/select";
 import { consoleSink } from "./sinks/console";
+import { LiveSink } from "./sinks/live";
 import type { Sink } from "./sinks/sink";
 import { nodeTerminal, type Terminal } from "./sinks/terminal";
 
@@ -115,13 +116,14 @@ class RootLoggerImpl extends BaseLogger implements RootLogger {
 	#color: boolean;
 	#format: Format | undefined;
 	#renderer: Renderer;
-	#sink: Sink = consoleSink;
+	#sink: Sink;
 
 	constructor(environment: Environment) {
 		super();
 		this.#environment = environment;
 		this.#color = !environment.noColor;
-		this.#renderer = this.#select();
+		this.#renderer = this.#pickRenderer();
+		this.#sink = this.#pickSink();
 	}
 
 	get color(): boolean {
@@ -130,7 +132,7 @@ class RootLoggerImpl extends BaseLogger implements RootLogger {
 
 	set color(value: boolean) {
 		this.#color = value;
-		this.#renderer = this.#select();
+		this.#reselect();
 	}
 
 	get format(): Format | undefined {
@@ -142,7 +144,7 @@ class RootLoggerImpl extends BaseLogger implements RootLogger {
 			throw new TypeError(`lololog: unknown format ${JSON.stringify(value)}`);
 		}
 		this.#format = value;
-		this.#renderer = this.#select();
+		this.#reselect();
 	}
 
 	scope(name: string): Logger {
@@ -162,9 +164,23 @@ class RootLoggerImpl extends BaseLogger implements RootLogger {
 		this.#sink.log(this.#renderer({ level, time: Date.now(), scope, datetime, args }));
 	}
 
-	#select(): Renderer {
+	#pickRenderer(): Renderer {
 		const { isBrowser, tty } = this.#environment;
 		return selectRenderer({ isBrowser, tty, color: this.#color, format: this.#format });
+	}
+
+	#pickSink(): Sink {
+		const { isBrowser, tty, terminal } = this.#environment;
+		const text = this.#format === undefined || this.#format === "pretty";
+		return terminal !== undefined && tty && !isBrowser && text
+			? new LiveSink(terminal, this.#color)
+			: consoleSink;
+	}
+
+	#reselect(): void {
+		this.#renderer = this.#pickRenderer();
+		this.#sink.dispose();
+		this.#sink = this.#pickSink();
 	}
 }
 
