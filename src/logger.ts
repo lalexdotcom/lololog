@@ -3,6 +3,9 @@ import { isTTY, noColor } from "./env/tty";
 import { isLevel, LEVEL_NAMES, LEVELS, type Level } from "./levels";
 import type { Renderer } from "./renderers/record";
 import { type Format, isFormat, selectRenderer } from "./renderers/select";
+import { consoleSink } from "./sinks/console";
+import type { Sink } from "./sinks/sink";
+import { nodeTerminal, type Terminal } from "./sinks/terminal";
 
 type LevelMethod = (...args: unknown[]) => void;
 
@@ -24,6 +27,7 @@ export interface Environment {
 	isBrowser: boolean;
 	tty: boolean;
 	noColor: boolean;
+	terminal?: Terminal;
 }
 
 abstract class BaseLogger {
@@ -111,6 +115,7 @@ class RootLoggerImpl extends BaseLogger implements RootLogger {
 	#color: boolean;
 	#format: Format | undefined;
 	#renderer: Renderer;
+	#sink: Sink = consoleSink;
 
 	constructor(environment: Environment) {
 		super();
@@ -154,7 +159,7 @@ class RootLoggerImpl extends BaseLogger implements RootLogger {
 	}
 
 	emit(level: Level, scope: string | undefined, datetime: boolean, args: unknown[]): void {
-		console.log(...this.#renderer({ level, time: Date.now(), scope, datetime, args }));
+		this.#sink.log(this.#renderer({ level, time: Date.now(), scope, datetime, args }));
 	}
 
 	#select(): Renderer {
@@ -164,7 +169,7 @@ class RootLoggerImpl extends BaseLogger implements RootLogger {
 }
 
 export function createRootLogger(
-	environment: Environment = { isBrowser, tty: isTTY, noColor },
+	environment: Environment = { isBrowser, tty: isTTY, noColor, terminal: nodeTerminal() },
 ): RootLogger {
 	return new RootLoggerImpl(environment);
 }
