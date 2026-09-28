@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `L.scope(name)`: named loggers that the root can silence or restrict.
 - Output for browser devtools (styled badges), terminals (coloured badges),
   and pipes (`json` by default, `logfmt` or plain `pretty` on request).
+- Spinners: `L.<level>.spin(message, options?)` returns a spinner with
+  `update`, `close`, `success` and `fail`, unbounded or with a progress
+  (`{ progress }` or `{ done, total }`), a custom `glyph` and `color`, and a
+  free `status` on `close`. On a terminal, spinners stay at the bottom and
+  animate in place; elsewhere they write a line per tick, and json/logfmt
+  lines carry a `spinner` field. `L.spinnerInterval` sets the tick (80 ms on
+  a terminal, 5 s elsewhere; `0` writes the first and last lines only).
 
 ### Removed
 
