@@ -24,12 +24,22 @@ function entries(): Array<Record<string, unknown>> {
 }
 
 describe("root logger", () => {
-	test("has one method per level, shared on the prototype", () => {
+	test("owns one method per level, bound to it", () => {
 		const root = createRootLogger(PIPE);
+		const db = root.scope("db");
 		for (const level of LEVEL_NAMES) {
-			expect(typeof root[level]).toBe("function");
-			expect(Object.hasOwn(root, level)).toBe(false);
+			expect(Object.hasOwn(root, level)).toBe(true);
+			expect(root[level]).not.toBe(db[level]);
 		}
+		const { info } = root;
+		info("detached");
+		expect(entries()[0]).toMatchObject({ msg: "detached" });
+	});
+
+	test("can be passed as a callback", async () => {
+		const db = createRootLogger(PIPE).scope("db");
+		await Promise.reject(new Error("boom")).catch(db.error);
+		expect(entries()[0]).toMatchObject({ level: "error", scope: "db" });
 	});
 
 	test("starts enabled, at wth, without datetime, format or NO_COLOR", () => {

@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Logger `L` (also exported as `logger`): one method per level (`wth`, `debug`,
-  `verb`, `info`, `success`, `notice`, `warn`, `error`, `crit`, `alert`,
-  `emerg`), severities mapped to OpenTelemetry (`LEVELS`), options `enabled`,
-  `level`, `datetime`, `color` and `format` (`pretty`, `json`, `logfmt`).
+- Logger `L` (also exported as `logger`): one method per level, bound to its
+  logger so it can be passed as a callback (`wth`, `debug`, `verb`, `info`,
+  `success`, `notice`, `warn`, `error`, `crit`, `alert`, `emerg`), severities
+  mapped to OpenTelemetry (`LEVELS`), options `enabled`, `level`, `datetime`,
+  `color` and `format` (`pretty`, `json`, `logfmt`).
 - `L.scope(name)`: named loggers that the root can silence or restrict.
 - Output for browser devtools (styled badges), terminals (coloured badges),
   and pipes (`json` by default, `logfmt` or plain `pretty` on request).

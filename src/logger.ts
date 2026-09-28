@@ -32,7 +32,6 @@ abstract class BaseLogger {
 	#threshold: number = LEVELS.wth;
 	#datetime: boolean | undefined;
 
-	// Declared, not defined: a class field would shadow the prototype methods generated below.
 	declare wth: LevelMethod;
 	declare debug: LevelMethod;
 	declare verb: LevelMethod;
@@ -44,6 +43,17 @@ abstract class BaseLogger {
 	declare crit: LevelMethod;
 	declare alert: LevelMethod;
 	declare emerg: LevelMethod;
+
+	constructor() {
+		// Own closures rather than one prototype function per level: a detached
+		// `promise.catch(L.error)` and `L.debug.spin` both need the method to know its logger. Not
+		// a Proxy either: its trap would run on every call, filtered ones included (~20 ns against
+		// ~0.3 ns measured).
+		for (const level of LEVEL_NAMES) {
+			const severity = LEVELS[level];
+			this[level] = (...args: unknown[]) => this.write(level, severity, args);
+		}
+	}
 
 	get enabled(): boolean {
 		return this.#enabled;
@@ -76,15 +86,6 @@ abstract class BaseLogger {
 	}
 
 	abstract write(level: Level, severity: number, args: unknown[]): void;
-}
-
-// One shared implementation per level, bound to its severity once, on the prototype: a Proxy
-// would run a trap on every call, filtered ones included (~20 ns against ~0.3 ns measured).
-for (const level of LEVEL_NAMES) {
-	const severity = LEVELS[level];
-	BaseLogger.prototype[level] = function (this: BaseLogger, ...args: unknown[]) {
-		this.write(level, severity, args);
-	};
 }
 
 class ScopedLogger extends BaseLogger implements Logger {
