@@ -125,7 +125,7 @@ export class SpinnerImpl implements Spinner {
 	}
 
 	#apply(options: InitialSpinnerOptions | undefined): void {
-		if (options === undefined) return;
+		if (options == null) return;
 		this.#progress = nextProgress(this.#progress, options);
 		if (options.glyph !== undefined) {
 			const frames = splitFrames(options.glyph);

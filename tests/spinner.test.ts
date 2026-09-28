@@ -112,6 +112,18 @@ describe("spin", () => {
 	});
 });
 
+describe("null options", () => {
+	test("are tolerated like undefined, not read as an object", () => {
+		const root = createRootLogger(PIPE);
+		expect(() => {
+			const spinner = root.info.spin("a", null as never);
+			spinner.update("b", null as never);
+			spinner.update(null as never);
+			spinner.fail(undefined, null as never);
+		}).not.toThrow();
+	});
+});
+
 describe("update and heartbeat", () => {
 	test("shows an update at the next tick, not before", () => {
 		const spinner = createRootLogger(PIPE).info.spin("a");
