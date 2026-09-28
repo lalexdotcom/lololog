@@ -8,7 +8,7 @@ document.body.innerHTML = `
 	<h1>lololog playground</h1>
 	<p>Open the devtools console (F12), then click.</p>
 	<p><button id="demo">Run the full demo</button></p>
-	<p><button id="spinners">Run the spinners</button> <label>spinnerInterval <input id="interval" type="number" min="0" placeholder="5000" style="width: 6em"></label></p>
+	<p><button id="spinners">Run the spinners</button> <label>spinnerInterval <input id="interval" type="number" min="0" value="1000" placeholder="5000" style="width: 6em"></label></p>
 	<p>Root: ${levels.map((level) => `<button data-level="${level}">${level}</button>`).join(" ")}</p>
 	<p>Scope <code>db</code>: ${levels.map((level) => `<button data-scope-level="${level}">${level}</button>`).join(" ")}</p>
 	<p>
@@ -18,6 +18,9 @@ document.body.innerHTML = `
 		<label>root level <select id="level">${levels.map((level) => `<option>${level}</option>`).join("")}</select></label>
 	</p>
 </main>`;
+
+// The 5 s default would show a single heartbeat in this 6 s scenario.
+L.spinnerInterval = 1000;
 
 const db = L.scope("db");
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector(selector) as T;

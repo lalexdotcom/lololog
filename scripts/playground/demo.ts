@@ -23,12 +23,14 @@ export async function spinnerDemo(L: RootLogger, external?: () => void): Promise
 	const download = L.info.spin("Downloading assets", { progress: 0 });
 	const files = L.notice.spin("Processing files", { total: 120 });
 	const custom = L.verb.spin("Custom glyph", { glyph: "◐◓◑◒", color: "mediumpurple" });
+	const cache = L.warn.spin("Warming the cache");
 	for (let step = 1; step <= 24; step++) {
 		await sleep(250);
 		download.update({ progress: (step / 24) * 0.9 });
 		files.update({ done: step * 4, total: 120 });
 		if (step === 6) connect.success("Connected");
 		if (step === 10) L.warn("an ordinary log between spinners");
+		if (step === 12) cache.fail("Cache unreachable");
 		if (step === 14) external?.();
 		if (step === 18) custom.close("Custom skipped", { status: "skipped" });
 	}
