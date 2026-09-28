@@ -1,7 +1,7 @@
 import { describe, expect, test } from "@rstest/core";
 import { renderJson } from "../src/renderers/json";
 import { quote, renderLogfmt } from "../src/renderers/logfmt";
-import type { LogRecord } from "../src/renderers/record";
+import type { LogRecord, SpinnerView } from "../src/renderers/record";
 
 const TIME = Date.UTC(2026, 8, 25, 10);
 
@@ -15,6 +15,17 @@ function record(overrides: Partial<LogRecord> = {}): LogRecord {
 		...overrides,
 	};
 }
+
+function spinning(spinner: SpinnerView, message = "load"): LogRecord {
+	return record({ args: ["%s", message], spinner });
+}
+
+const running: SpinnerView = {
+	status: "running",
+	progress: { kind: "count", done: 7, total: 120 },
+	glyph: "⠋",
+	color: "turquoise",
+};
 
 describe("renderJson", () => {
 	test("writes one line with the fields in order", () => {
@@ -90,6 +101,36 @@ describe("renderLogfmt", () => {
 	test("keeps an empty msg as an explicit empty value", () => {
 		expect(renderLogfmt(record({ scope: undefined, args: [1] }))).toEqual([
 			'time=2026-09-25T10:00:00.000Z level=warn severity=13 msg="" data=1',
+		]);
+	});
+});
+
+describe("spinner field", () => {
+	test("json puts it between scope and msg", () => {
+		expect(renderJson(spinning(running))).toEqual([
+			'{"time":"2026-09-25T10:00:00.000Z","level":"warn","severity":13,"scope":"db","spinner":{"status":"running","done":7,"total":120},"msg":"load"}',
+		]);
+	});
+
+	test("json writes a ratio unrounded, and a bare status for an unbounded spinner", () => {
+		const ratio = renderJson(
+			spinning({ ...running, status: "success", progress: { kind: "ratio", ratio: 1 / 3 } }),
+		);
+		expect(JSON.parse(String(ratio[0])).spinner).toEqual({ status: "success", progress: 1 / 3 });
+		const bare = renderJson(
+			spinning({ ...running, status: "skipped", progress: { kind: "none" } }),
+		);
+		expect(JSON.parse(String(bare[0])).spinner).toEqual({ status: "skipped" });
+	});
+
+	test("json keeps a message with specifiers literal", () => {
+		const [line] = renderJson(spinning(running, "100% %s %d %c"));
+		expect(JSON.parse(String(line)).msg).toBe("100% %s %d %c");
+	});
+
+	test("logfmt writes it as one quoted JSON value", () => {
+		expect(renderLogfmt(spinning(running))).toEqual([
+			'time=2026-09-25T10:00:00.000Z level=warn severity=13 scope=db spinner="{\\"status\\":\\"running\\",\\"done\\":7,\\"total\\":120}" msg=load',
 		]);
 	});
 });

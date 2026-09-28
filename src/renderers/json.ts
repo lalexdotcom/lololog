@@ -1,22 +1,44 @@
 import { serialize } from "../format/serialize";
 import { formatMessage } from "../format/specifiers";
 import { LEVELS } from "../levels";
-import type { LogRecord, Renderer } from "./record";
+import type { LogRecord, Renderer, SpinnerView } from "./record";
+
+export interface SpinnerField {
+	status: string;
+	progress?: number;
+	done?: number;
+	total?: number;
+}
 
 export interface Entry {
 	time: string;
 	level: string;
 	severity: number;
 	scope: string | undefined;
+	spinner: SpinnerField | undefined;
 	msg: string;
 	data: unknown;
 }
 
-// Field order is output order. An undefined scope or data is dropped by JSON.stringify and
-// skipped by logfmt, which is how both omit absent fields.
-export function toEntry({ level, time, scope, args }: LogRecord): Entry {
+function spinnerField({ status, progress }: SpinnerView): SpinnerField {
+	if (progress.kind === "ratio") return { status, progress: progress.ratio };
+	if (progress.kind === "count") return { status, done: progress.done, total: progress.total };
+	return { status };
+}
+
+// Field order is output order. An undefined scope, spinner or data is dropped by JSON.stringify
+// and skipped by logfmt, which is how both omit absent fields.
+export function toEntry({ level, time, scope, args, spinner }: LogRecord): Entry {
 	const { msg, data } = formatMessage(args);
-	return { time: new Date(time).toISOString(), level, severity: LEVELS[level], scope, msg, data };
+	return {
+		time: new Date(time).toISOString(),
+		level,
+		severity: LEVELS[level],
+		scope,
+		spinner: spinner === undefined ? undefined : spinnerField(spinner),
+		msg,
+		data,
+	};
 }
 
 export const renderJson: Renderer = (record) => [serialize(toEntry(record))];
