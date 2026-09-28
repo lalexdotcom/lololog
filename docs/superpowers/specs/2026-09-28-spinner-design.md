@@ -35,7 +35,7 @@ screen.
 | Entry point | `L.<level>.spin(message, options?)`, on the root and on every scope |
 | Level methods | Created per instance in the constructor (closures bound to the logger), each carrying `spin` |
 | Filtering | Evaluated once, at `spin`; filtered → shared frozen no-op spinner |
-| Final lines | `success`, `fail`, `close` emit at the `spin` level, immediately |
+| Final lines | `close(message?, {status})` emits at the `spin` level, immediately; `success` and `fail` call it with their own defaults |
 | `update` | Changes state only; shown at the next tick |
 | `spinnerInterval` | Root-only; `undefined` = default: 80 ms with the `LiveSink`, 5000 ms with the `ConsoleSink`; `0` = no timer, initial and final lines only |
 | Non-TTY tick | Emits the current state of every active spinner, changed or not (heartbeat) |
@@ -44,7 +44,7 @@ screen.
 | Cursor | Hidden while the zone is on screen, restored on `process` `exit` |
 | Unbounded glyph | Braille frames in the `LiveSink`, `↻` elsewhere; overridable |
 | Colours | Running turquoise, success green, fail red, close default text colour |
-| json/logfmt | One `spinner` field: `{state, progress?}` or `{state, done, total}` |
+| json/logfmt | One `spinner` field: `{status, progress?}` or `{status, done, total}` |
 
 ## 1. Public API
 
@@ -63,10 +63,12 @@ export type InitialSpinnerOptions =
 export interface Spinner {
 	update(message: string, options?: SpinnerOptions): void;
 	update(options: SpinnerOptions): void;
-	close(message?: string, options?: SpinnerOptions): void;
-	success(message?: string, options?: SpinnerOptions): void;
-	fail(message?: string, options?: SpinnerOptions): void;
+	close(message?: string, options?: CloseOptions): void;
+	success(message?: string, options?: CloseOptions): void;
+	fail(message?: string, options?: CloseOptions): void;
 }
+
+export type CloseOptions = SpinnerOptions & { status?: string };
 
 type LevelMethod = ((...args: unknown[]) => void) & {
 	spin(message: string, options?: InitialSpinnerOptions): Spinner;
@@ -77,7 +79,8 @@ interface RootLogger {
 }
 ```
 
-`Spinner`, `SpinnerOptions`, `InitialSpinnerOptions` and `Color` are exported
+`Spinner`, `SpinnerOptions`, `InitialSpinnerOptions`, `CloseOptions` and
+`Color` are exported
 from `src/index.ts`.
 
 The `never` guards reject `{ progress: 0.5, total: 10 }`: excess-property
@@ -108,17 +111,21 @@ logger-core review).
   filled part of the bar. Kept across updates until changed.
 - `update`: stores message and options; nothing is written before the next
   tick.
-- `close` / `success` / `fail`: emit the final line immediately and
-  unregister the spinner. Final lines always show the first frame of their
-  glyph. Defaults:
+- `close(message?, options?)`: emits the final line immediately and
+  unregisters the spinner. `status` is a free string, `"closed"` by default;
+  `"running"` is reserved for live lines and replaced by `"closed"`. Final
+  lines always show the first frame of their glyph. The message defaults to
+  the last one.
+- `success` and `fail` are `close` with their own defaults, which the
+  caller's options override. Defaults belong to the method, not to the
+  status: `close(m, { status: "success" })` still shows `●`.
 
-  | Method | Glyph | Colour | Progress shown | json `state` |
+  | Method | Glyph | Colour | Progress shown | `status` |
   |---|---|---|---|---|
   | `close` | `●` | default text colour | last known | `"closed"` |
-  | `success` | `✔` | green | full, unless given | `"success"` |
-  | `fail` | `✖` | red | last known, unless given | `"fail"` |
+  | `success` | `✔` | green | full | `"success"` |
+  | `fail` | `✖` | red | last known | `"fail"` |
 
-  The message defaults to the last one.
 - Any call after the end is silently ignored.
 
 ### `spinnerInterval`
@@ -166,7 +173,7 @@ green and red reuse the existing entries.
 | close | `(●)` | `● ━━━─────  42%` |
 
 - Running frames: `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`.
-- The whole indicator takes the state colour: parentheses, glyph, filled
+- The whole indicator takes the spinner's colour: parentheses, glyph, filled
   cells `━`. Empty cells `─` are lightgray.
 - A running bounded spinner shows no glyph. The final glyph plus its space
   takes the two cells the bar gives up, so running and final lines align.
@@ -190,11 +197,11 @@ The console cannot erase a line: each tick is a new `console.log`, so the
 unbounded running glyph is `(↻)`. The indicator goes through `%c` segments
 after the existing prefix ones:
 
-- glyph segments: `font-family: monospace; color: <state colour>`;
+- glyph segments: `font-family: monospace; color: <spinner colour>`;
 - bar: one space styled
   `font-family: monospace; background: linear-gradient(to right, ${c} 0%, ${c} ${pct}%, lightgrey ${pct}%, lightgrey 100%); padding: 0px 48px; line-height: 0.5; border-radius: 2px`,
-  where `c` is the state colour (`currentColor` for `close`'s default text
-  colour) and `pct` the percent label's value;
+  where `c` is the spinner's colour (`currentColor` for `close`'s default
+  text colour) and `pct` the percent label's value;
 - label: its own segment, `font-family: monospace`, no background, padded as
   in `tty`.
 
@@ -206,19 +213,19 @@ front: every tick is its own line, there is no zone to align.
 
 Every spinner line (initial, tick, final) carries a `spinner` field right
 after `scope`: `time`, `level`, `severity`, `scope`, `spinner`, `msg`,
-`data`. Its value is `{state}`, `{state, progress}` or
-`{state, done, total}`, `state` one of `"running"`, `"success"`, `"fail"`,
-`"closed"`; `progress` is the clamped ratio, unrounded. `msg` is the current
+`data`. Its value is `{status}`, `{status, progress}` or
+`{status, done, total}`, `status` being `"running"` or the closing status
+(`"closed"`, `"success"`, `"fail"` or the caller's); `progress` is the clamped ratio, unrounded. `msg` is the current
 message; `data` is absent.
 
 ```json
-{"time":"2026-09-28T12:00:05.000Z","level":"debug","severity":5,"scope":"db","spinner":{"state":"running","done":7,"total":120},"msg":"Migrating"}
+{"time":"2026-09-28T12:00:05.000Z","level":"debug","severity":5,"scope":"db","spinner":{"status":"running","done":7,"total":120},"msg":"Migrating"}
 ```
 
 logfmt writes the same object as JSON in a single quoted field:
 
 ```
-time=2026-09-28T12:00:05.000Z level=debug severity=5 scope=db spinner="{\"state\":\"running\",\"done\":7,\"total\":120}" msg=Migrating
+time=2026-09-28T12:00:05.000Z level=debug severity=5 scope=db spinner="{\"status\":\"running\",\"done\":7,\"total\":120}" msg=Migrating
 ```
 
 ## 4. Sinks and the live zone
@@ -301,7 +308,7 @@ carry on in the new sink.
 | `src/spinner/spinner.ts` | `Spinner` implementation and the shared no-op |
 | `src/sinks/console.ts` | `ConsoleSink` |
 | `src/sinks/live.ts` | `LiveSink`: zone, wrapper, cursor, resize, exit |
-| `src/renderers/record.ts` | `LogRecord` gains `spinner?: {state, progress, glyph, color}` |
+| `src/renderers/record.ts` | `LogRecord` gains `spinner?: {status, progress, glyph, color}` |
 | `src/renderers/*` | Each renderer places the indicator between prefix and message |
 | `src/logger.ts` | Per-instance level methods, `spin`, registry, timer, `spinnerInterval`, sink selection |
 | `src/style/ansi.ts` | `turquoise` |
@@ -322,7 +329,9 @@ Every test file runs in both rstest projects unless marked Node only.
   `%c` segments and their CSS in `browser`; field and position in `json`;
   quoted JSON in `logfmt`; a `%` in the message stays literal.
 - `tests/spinner.test.ts` (fake timers): filtered `spin` returns the no-op;
-  calls after the end are ignored; final lines are immediate; `update` shows
+  calls after the end are ignored; final lines are immediate; `success` and
+  `fail` defaults overridden by options; `close(m, { status: "success" })`
+  keeps `●`; `status: "running"` becomes `"closed"`; `update` shows
   at the next tick; heartbeat outside a TTY; `spinnerInterval` validation,
   `0`, restart; per-instance methods (`promise.catch(L.error)`, scope carried
   by `L.scope("x").debug.spin`).
@@ -333,7 +342,7 @@ Every test file runs in both rstest projects unless marked Node only.
   only if a TTY; cursor hidden and restored on `exit`; sink change.
 - Playgrounds (`tty`, `no-tty`, `json`, `logfmt`, `web`): a shared scenario
   with an unbounded, a percent and a count spinner, a `success`, a `fail`, a
-  `close`, a custom glyph and colour, ordinary logs in between; `tty` adds a
+  `close` with a custom status, a custom glyph and colour, ordinary logs in between; `tty` adds a
   direct `console.log` and a partial `process.stdout.write`.
 - No new consumer fixture: no new `exports` entry, and the existing fixtures
   already prove `getNodeBuiltin("util")` raises no bundler warning.
