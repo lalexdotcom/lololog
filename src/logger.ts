@@ -7,6 +7,7 @@ import { consoleSink } from "./sinks/console";
 import { LiveSink } from "./sinks/live";
 import type { Sink } from "./sinks/sink";
 import { nodeTerminal, type Terminal } from "./sinks/terminal";
+import { exec, type Task } from "./spinner/exec";
 import {
 	type InitialSpinnerOptions,
 	NOOP_SPINNER,
@@ -18,11 +19,7 @@ import {
 
 type LevelMethod = ((...args: unknown[]) => void) & {
 	spin(message: string, options?: InitialSpinnerOptions): Spinner;
-	exec<T>(
-		message: string,
-		callback: (onProgress: Spinner["update"]) => PromiseLike<T>,
-		options?: InitialSpinnerOptions,
-	): Promise<T>;
+	exec<T>(message: string, task: Task<T>, options?: InitialSpinnerOptions): Promise<T>;
 };
 
 type LevelMethods = { [L in Level]: LevelMethod };
@@ -79,20 +76,7 @@ abstract class BaseLogger {
 			const severity = LEVELS[level];
 			const method = ((...args: unknown[]) => this.write(level, severity, args)) as LevelMethod;
 			method.spin = (message, options) => this.spin(level, severity, message, options);
-			method.exec = async (message, callback, options) => {
-				const spinner = method.spin(message, options);
-				let value: Awaited<ReturnType<typeof callback>>;
-				try {
-					value = await callback(spinner.update);
-				} catch (error) {
-					spinner.fail();
-					throw error;
-				}
-				// Outside the try: a throw while rendering success() must not be mistaken for a
-				// callback failure and turn into a fail() line.
-				spinner.success();
-				return value;
-			};
+			method.exec = (message, task, options) => exec(method.spin(message, options), task);
 			this[level] = method;
 		}
 	}
