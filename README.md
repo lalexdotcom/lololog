@@ -38,6 +38,23 @@ milliseconds (5000 by default; `0` writes only the first and last lines), and
 json/logfmt lines carry a `spinner` field with the spinner's `id`, so a
 collector can rebuild its progress from its lines.
 
+`exec` runs an async task under a spinner:
+
+```ts
+const files = await L.info.exec("Downloading", async (onProgress) => {
+	const files = [];
+	for (const url of urls) {
+		files.push(await fetch(url));
+		onProgress({ done: files.length, total: urls.length });
+	}
+	return files;
+});
+```
+
+The spinner ends with `success()` when the task resolves and `fail()` when it
+rejects; `exec` returns the task's value or rethrows its error. `onProgress` is
+the spinner's `update`.
+
 ## Install
 
 ```sh

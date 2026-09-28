@@ -7,6 +7,7 @@ import { consoleSink } from "./sinks/console";
 import { LiveSink } from "./sinks/live";
 import type { Sink } from "./sinks/sink";
 import { nodeTerminal, type Terminal } from "./sinks/terminal";
+import { exec, type Task } from "./spinner/exec";
 import {
 	type InitialSpinnerOptions,
 	NOOP_SPINNER,
@@ -18,6 +19,7 @@ import {
 
 type LevelMethod = ((...args: unknown[]) => void) & {
 	spin(message: string, options?: InitialSpinnerOptions): Spinner;
+	exec<T>(message: string, task: Task<T>, options?: InitialSpinnerOptions): Promise<T>;
 };
 
 type LevelMethods = { [L in Level]: LevelMethod };
@@ -74,6 +76,7 @@ abstract class BaseLogger {
 			const severity = LEVELS[level];
 			const method = ((...args: unknown[]) => this.write(level, severity, args)) as LevelMethod;
 			method.spin = (message, options) => this.spin(level, severity, message, options);
+			method.exec = (message, task, options) => exec(method.spin(message, options), task);
 			this[level] = method;
 		}
 	}
