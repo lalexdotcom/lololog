@@ -7,6 +7,10 @@
   exported flags apply them to `globalThis`. Tests simulate other runtimes by
   passing plain objects to the predicates, and check the flags against the
   runtime actually running them.
+- Terminal output is tested through `tests/fake-terminal.ts` (injected as
+  `Environment.terminal`: captured writes, deferred callbacks, exit), so
+  LiveSink and spinner tests run in both projects; timers through
+  `rs.useFakeTimers()`.
 - Consumer fixtures live in `tests/consumers/<name>/`, each with its own
   `package.json` and `npm run check`. They install the packed tarball with
   npm. Browser fixtures build into `dist/` with an `index.html` whose bundle
