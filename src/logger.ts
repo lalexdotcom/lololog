@@ -211,8 +211,13 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 		) {
 			throw new TypeError(`lololog: invalid spinnerInterval ${String(value)}`);
 		}
+		// Node's setInterval clamps a delay above 2^31-1 ms to 1 ms, ticking ~1000x faster than asked.
+		if (value !== undefined && value > 2 ** 31 - 1) {
+			throw new TypeError(`lololog: spinnerInterval ${String(value)} exceeds setInterval's range`);
+		}
 		this.#interval = value;
 		this.#restartTimer();
+		if (this.#sink.live) this.#sink.draw(this.#zone());
 	}
 
 	spin(
@@ -260,6 +265,9 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 	};
 
 	#zone(): unknown[][] {
+		// 0 means no live zone (per spec): drawing it here, not just skipping the timer, is what
+		// lets the interval setter erase a running zone instead of leaving a frozen last frame.
+		if (this.#period() === 0) return [];
 		return Array.from(this.#spinners, (spinner) =>
 			this.#render(spinner, spinner.view(true), spinner.message),
 		);

@@ -216,6 +216,15 @@ describe("spinnerInterval", () => {
 		expect(root.spinnerInterval).toBeUndefined();
 	});
 
+	test("rejects a delay above what setInterval can hold without clamping", () => {
+		const root = createRootLogger(PIPE);
+		expect(() => {
+			root.spinnerInterval = 2 ** 31;
+		}).toThrow(TypeError);
+		root.spinnerInterval = 2 ** 31 - 1;
+		expect(root.spinnerInterval).toBe(2 ** 31 - 1);
+	});
+
 	test("0 writes the initial and final lines only", () => {
 		const root = createRootLogger(PIPE);
 		root.spinnerInterval = 0;
@@ -274,6 +283,20 @@ describe("on a terminal", () => {
 		root.info.spin("a");
 		rs.advanceTimersByTime(1000);
 		expect(fake.out).toEqual([`${BADGES.info} ${T}(↻)${R} a\n`]);
+	});
+
+	test("spinnerInterval = 0 clears a running zone instead of freezing it, and resumes after", () => {
+		const { fake, root } = onTerminal();
+		const spinner = root.info.spin("a");
+		root.spinnerInterval = 0;
+		expect(fake.out.at(-1)).toBe(`${up(1)}${SHOW}`);
+		root.warn("x");
+		expect(fake.out.at(-1)).toBe(`${BADGES.warn} x\n`);
+		spinner.success();
+		expect(fake.out.at(-1)).toBe(`${BADGES.info} ${GREEN}(✔)${R} a\n`);
+		root.spinnerInterval = undefined;
+		root.info.spin("b");
+		expect(fake.out.at(-1)).toBe(`${HIDE}${BADGES.info} ${T}(⠋)${R} b\n`);
 	});
 
 	test("leaves the terminal when the format changes, and carries on in the new format", () => {
