@@ -20,7 +20,7 @@ const scopeLabels = new Map<string, string>();
 function scopeLabel(scope: string): string {
 	let label = scopeLabels.get(scope);
 	if (label === undefined) {
-		label = colorize(`<${scope}>`, { color: "grey" });
+		label = colorize(` <${scope}> `, LEVEL_STYLES.wth);
 		scopeLabels.set(scope, label);
 	}
 	return label;

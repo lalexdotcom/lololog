@@ -12,7 +12,9 @@ export const BADGE_CSS = Object.fromEntries(
 	}),
 ) as Record<Level, string>;
 
-const SCOPE_CSS = "color: grey";
+// No colour: black text, as in the wth badge, would vanish on a dark devtools theme once the
+// background is gone.
+const SCOPE_CSS = `border: 1px solid ${LEVEL_STYLES.wth["background-color"]}; padding: 0 4px; border-radius: 4px`;
 const DATE_CSS = "color: lightgray";
 
 export const renderBrowser: Renderer = ({ level, time, scope, datetime, args }) => {

@@ -170,14 +170,14 @@ describe("scopes", () => {
 		const db = root.scope("db");
 		root.format = "pretty";
 		db.info("hi");
-		expect(lines).toEqual([["[INFO <db>] hi"]]);
+		expect(lines).toEqual([["[INFO] <db> hi"]]);
 	});
 
 	test("resolve datetime as scope ?? root ?? false", () => {
 		const root = createRootLogger(PIPE);
 		root.format = "pretty";
 		const db = root.scope("db");
-		const dated = /^\[INFO <db>\] \[.+\] x$/;
+		const dated = /^\[INFO\] <db> \[.+\] x$/;
 		db.info("x");
 		root.datetime = true;
 		db.info("x");
