@@ -24,6 +24,23 @@ export async function spinnerDemo(L: RootLogger, external?: () => void): Promise
 	const files = L.notice.spin("Processing files", { total: 120 });
 	const custom = L.verb.spin("Custom glyph", { glyph: "◐◓◑◒", color: "mediumpurple" });
 	const cache = L.warn.spin("Warming the cache");
+	const sync = L.info.exec("Syncing", async (onProgress) => {
+		for (let done = 1; done <= 10; done++) {
+			await sleep(400);
+			if (done === 8) onProgress("Finalizing sync", { done, total: 10 });
+			else onProgress({ done, total: 10 });
+		}
+	});
+	// Caught right away: Node exits on a rejection still unhandled when it settles, and the ✖
+	// line already reports it.
+	const migrate = db.error
+		.exec("Migrating", async (onProgress) => {
+			await sleep(1500);
+			onProgress({ progress: 0.4 });
+			await sleep(1500);
+			throw new Error("migration 042 failed");
+		})
+		.catch(() => {});
 	for (let step = 1; step <= 24; step++) {
 		await sleep(250);
 		download.update({ progress: (step / 24) * 0.9 });
@@ -36,4 +53,5 @@ export async function spinnerDemo(L: RootLogger, external?: () => void): Promise
 	}
 	download.success();
 	files.fail("Processing failed", { done: 97, total: 120 });
+	await Promise.all([sync, migrate]);
 }
