@@ -351,3 +351,81 @@ describe("on a terminal", () => {
 		]);
 	});
 });
+
+describe("exec", () => {
+	test("resolves to the callback's value, and ends the spinner with a success line", async () => {
+		const root = pretty();
+		const value = await root.info.exec("load", async () => 42);
+		expect(value).toBe(42);
+		expect(lines.at(-1)).toEqual(["[INFO] (✔) %s", "load"]);
+	});
+
+	test("rejects with the same error, and ends the spinner with a fail line", async () => {
+		const root = pretty();
+		const error = new Error("boom");
+		let caught: unknown;
+		try {
+			await root.info.exec("load", async () => {
+				throw error;
+			});
+		} catch (e) {
+			caught = e;
+		}
+		expect(caught).toBe(error);
+		expect(lines.at(-1)).toEqual(["[INFO] (✖) %s", "load"]);
+	});
+
+	test("a synchronous throw inside the callback behaves like a rejection", async () => {
+		const root = pretty();
+		const error = new Error("boom");
+		let caught: unknown;
+		try {
+			await root.info.exec("load", () => {
+				throw error;
+			});
+		} catch (e) {
+			caught = e;
+		}
+		expect(caught).toBe(error);
+		expect(lines.at(-1)).toEqual(["[INFO] (✖) %s", "load"]);
+	});
+
+	test("onProgress sets the final message when the callback resolves", async () => {
+		const root = pretty();
+		await root.info.exec("load", async (onProgress) => {
+			onProgress("new message", { progress: 0.5 });
+		});
+		expect(lines.at(-1)).toEqual(["[INFO] ✔ (100%) %s", "new message"]);
+	});
+
+	test("filtered level: the callback still runs and its value is returned, but nothing is written", async () => {
+		const root = createRootLogger(PIPE);
+		root.level = "info";
+		const value = await root.debug.exec("a", async (onProgress) => {
+			onProgress("b");
+			return 7;
+		});
+		expect(value).toBe(7);
+		rs.advanceTimersByTime(10_000);
+		expect(lines).toEqual([]);
+	});
+
+	test("works on a scope", async () => {
+		const root = createRootLogger(PIPE);
+		const value = await root.scope("db").info.exec("load", async () => 5);
+		expect(value).toBe(5);
+		expect(entries().at(-1)).toMatchObject({
+			scope: "db",
+			msg: "load",
+			spinner: { status: "success" },
+		});
+	});
+
+	test("infers T from the callback's return type, and rejects a non-promise callback", async () => {
+		const root = pretty();
+		const n: number = await root.info.exec("x", async () => 42);
+		expect(n).toBe(42);
+		// @ts-expect-error a synchronous callback is not assignable to `(onProgress) => PromiseLike<T>`
+		void root.info.exec("y", () => 42);
+	});
+});

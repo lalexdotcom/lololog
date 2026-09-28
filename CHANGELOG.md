@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   progress across lines. `L.spinnerInterval` sets the tick (80 ms while
   animating in place, 5 s elsewhere; `0` writes the first and last lines
   only).
+- `L.<level>.exec(message, callback, options?)`: wraps a promise in a
+  spinner, calling `success()` on resolve or `fail()` on reject (rethrowing
+  the same error), with the callback's own `onProgress` (the spinner's
+  `update`) to report progress.
 
 ### Removed
 
