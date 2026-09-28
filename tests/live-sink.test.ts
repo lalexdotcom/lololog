@@ -99,3 +99,75 @@ describe("LiveSink zone", () => {
 		expect(fake.out.at(-1)).toBe(`${up(1)}${SHOW}`);
 	});
 });
+
+describe("LiveSink external writes", () => {
+	test("erase the zone first, then redraw it once, deferred", () => {
+		const { fake, live } = sink();
+		live.draw([["a"]]);
+		fake.terminal.stdout.write("one\n");
+		fake.terminal.stdout.write("two\n");
+		expect(fake.out).toEqual([`${HIDE}a\n`, up(1), "one\n", "two\n"]);
+		fake.flush();
+		expect(fake.out.at(-1)).toBe("a\n");
+	});
+
+	test("do not redraw over a line left open, until it ends", () => {
+		const { fake, live } = sink();
+		live.draw([["a"]]);
+		fake.terminal.stdout.write("partial ");
+		fake.flush();
+		expect(fake.out.at(-1)).toBe("partial ");
+		live.draw([["b"]]);
+		expect(fake.out.at(-1)).toBe("partial ");
+		fake.terminal.stdout.write("end\n");
+		fake.flush();
+		expect(fake.out.at(-1)).toBe("b\n");
+	});
+
+	test("start a lololog line on a new line after an open one", () => {
+		const { fake, live } = sink();
+		live.draw([["a"]]);
+		fake.terminal.stdout.write("partial ");
+		live.log(["x"]);
+		expect(fake.out.at(-1)).toBe("\nx\na\n");
+	});
+
+	test("count a Uint8Array ending in a newline as a closed line", () => {
+		const { fake, live } = sink();
+		live.draw([["a"]]);
+		fake.terminal.stdout.write(new TextEncoder().encode("bytes\n"));
+		fake.flush();
+		expect(fake.out.at(-1)).toBe("a\n");
+	});
+
+	test("are caught on stderr only when it is a TTY", () => {
+		const fake = fakeTerminal({ stderr: true });
+		const live = new LiveSink(fake.terminal, true);
+		live.draw([["a"]]);
+		fake.terminal.stderr?.write("err\n");
+		expect(fake.out.slice(1)).toEqual([up(1), "err\n"]);
+	});
+
+	test("the original write comes back once the zone empties", () => {
+		const { fake, live } = sink();
+		const original = fake.terminal.stdout.write;
+		live.draw([["a"]]);
+		expect(fake.terminal.stdout.write).not.toBe(original);
+		live.draw([]);
+		expect(fake.terminal.stdout.write).toBe(original);
+	});
+
+	test("a wrapper patched over ours stays, and ours passes through", () => {
+		const { fake, live } = sink();
+		live.draw([["a"]]);
+		const ours = fake.terminal.stdout.write;
+		const theirs = (chunk: unknown) => ours(chunk);
+		fake.terminal.stdout.write = theirs;
+		live.draw([]);
+		expect(fake.terminal.stdout.write).toBe(theirs);
+		const written = fake.out.length;
+		fake.terminal.stdout.write("z\n");
+		fake.flush();
+		expect(fake.out.slice(written)).toEqual(["z\n"]);
+	});
+});

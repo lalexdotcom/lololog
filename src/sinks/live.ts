@@ -1,5 +1,5 @@
 import type { Sink } from "./sink";
-import type { Terminal } from "./terminal";
+import type { Terminal, TerminalStream, Write } from "./terminal";
 
 const ESC = "\u001B[";
 const HIDE_CURSOR = `${ESC}?25l`;
@@ -31,6 +31,20 @@ export function truncate(line: string, width: number): string {
 	return out;
 }
 
+interface Hook {
+	stream: TerminalStream;
+	original: Write;
+	wrapper: Write;
+	active: boolean;
+}
+
+function endsLine(chunk: unknown): boolean | undefined {
+	if (typeof chunk === "string") return chunk === "" ? undefined : chunk.endsWith("\n");
+	if (chunk instanceof Uint8Array)
+		return chunk.length === 0 ? undefined : chunk[chunk.length - 1] === 10;
+	return undefined;
+}
+
 export class LiveSink implements Sink {
 	readonly live = true;
 	readonly #terminal: Terminal;
@@ -40,6 +54,10 @@ export class LiveSink implements Sink {
 	#drawn = 0;
 	#active = false;
 	#exitHooked = false;
+	#hooks: Hook[] = [];
+	#hidden = false;
+	#partial = false;
+	#pending = false;
 
 	constructor(terminal: Terminal, colors: boolean) {
 		this.#terminal = terminal;
@@ -54,11 +72,17 @@ export class LiveSink implements Sink {
 	log(args: readonly unknown[], zone?: ReadonlyArray<readonly unknown[]>): void {
 		const line = this.#terminal.format(args, this.#colors);
 		if (zone !== undefined) this.#zone = this.#formatZone(zone);
-		this.#write(`${this.#erase()}${line}\n${this.#render()}`);
+		const lead = this.#partial ? "\n" : "";
+		this.#partial = false;
+		this.#hidden = false;
+		this.#write(`${this.#erase()}${lead}${line}\n${this.#render()}`);
 	}
 
 	draw(zone: ReadonlyArray<readonly unknown[]>): void {
 		this.#zone = this.#formatZone(zone);
+		// Erased by an external write: the deferred redraw draws the new zone.
+		if (this.#hidden && zone.length > 0) return;
+		this.#hidden = false;
 		this.#write(this.#erase() + this.#render());
 	}
 
@@ -91,9 +115,11 @@ export class LiveSink implements Sink {
 		if (lines.length > 0 && !this.#active) {
 			this.#active = true;
 			this.#hookExit();
+			this.#hook();
 			out = HIDE_CURSOR + out;
 		} else if (lines.length === 0 && this.#active) {
 			this.#active = false;
+			this.#unhook();
 			out += SHOW_CURSOR;
 		}
 		return out;
@@ -106,6 +132,53 @@ export class LiveSink implements Sink {
 		this.#exitHooked = true;
 		this.#terminal.onExit(() => {
 			if (this.#active) this.#write(SHOW_CURSOR);
+		});
+	}
+
+	#hook(): void {
+		for (const stream of [this.#terminal.stdout, this.#terminal.stderr]) {
+			if (stream === undefined) continue;
+			const original = stream.write;
+			const hook: Hook = { stream, original, wrapper: original, active: true };
+			hook.wrapper = (chunk, ...rest) => {
+				if (!hook.active) return original.call(stream, chunk, ...rest);
+				this.#external();
+				const result = original.call(stream, chunk, ...rest);
+				this.#settle(chunk);
+				return result;
+			};
+			stream.write = hook.wrapper;
+			this.#hooks.push(hook);
+		}
+	}
+
+	#unhook(): void {
+		for (const hook of this.#hooks) {
+			hook.active = false;
+			// Someone wrapped write after us: putting our original back would drop their wrapper.
+			if (hook.stream.write === hook.wrapper) hook.stream.write = hook.original;
+		}
+		this.#hooks = [];
+	}
+
+	#external(): void {
+		this.#write(this.#erase());
+		this.#drawn = 0;
+		this.#hidden = true;
+	}
+
+	// Redrawn once after the whole burst: live-region libraries emit one frame over several
+	// writes, and a redraw between them would break their cursor arithmetic.
+	#settle(chunk: unknown): void {
+		const ends = endsLine(chunk);
+		if (ends !== undefined) this.#partial = !ends;
+		if (this.#partial || this.#pending) return;
+		this.#pending = true;
+		this.#terminal.defer(() => {
+			this.#pending = false;
+			if (!this.#hidden || this.#partial) return;
+			this.#hidden = false;
+			this.#write(this.#render());
 		});
 	}
 }
