@@ -355,5 +355,7 @@ Every test file runs in both rstest projects unless marked Node only.
 - The same code emits heartbeat lines in CI, `spinner` fields in json/logfmt
   and styled lines in the browser, and never throws because of the output.
 - A filtered `spin` allocates nothing and starts no timer.
+- The playgrounds (`tty`, `no-tty`, `json`, `logfmt`, `web`) run the spinner
+  scenario of § 6 before the branch is delivered.
 - `pnpm exec biome ci`, `pnpm typecheck`, `pnpm build`, `pnpm lint:package`,
   `pnpm test`, `pnpm test:consumers` all green.
