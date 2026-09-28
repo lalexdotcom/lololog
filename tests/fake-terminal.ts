@@ -5,6 +5,7 @@ export interface FakeTerminal {
 	out: string[];
 	flush(): void;
 	exit(): void;
+	readonly registrations: number;
 }
 
 // util.format's %s only: the renderers hand over "prefix %s" plus the message, nothing more.
@@ -47,6 +48,9 @@ export function fakeTerminal({ columns = 80, rows = 24, stderr = false } = {}): 
 		},
 		exit: () => {
 			for (const listener of exits) listener();
+		},
+		get registrations() {
+			return exits.length;
 		},
 	};
 }

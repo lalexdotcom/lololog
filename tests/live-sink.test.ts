@@ -81,6 +81,19 @@ describe("LiveSink zone", () => {
 		expect(fake.out[1]).toBe(`${up(1)}abc\n`);
 	});
 
+	test("treats columns=0 and rows=0 as unknown, not zero-width", () => {
+		const { fake, live } = sink({ columns: 0, rows: 0 });
+		live.draw([["abc"]]);
+		expect(fake.out).toEqual([`${HIDE}abc\n`]);
+	});
+
+	test("collapses a newline in a zone line to a space, so #drawn matches one screen line", () => {
+		const { fake, live } = sink();
+		live.draw([["a\nb\r\n"]]);
+		live.draw([["c"]]);
+		expect(fake.out).toEqual([`${HIDE}a b \n`, `${up(1)}c\n`]);
+	});
+
 	test("shows the cursor on exit while the zone is drawn, and only then", () => {
 		const { fake, live } = sink();
 		live.draw([["a"]]);
@@ -97,6 +110,33 @@ describe("LiveSink zone", () => {
 		live.draw([["a"]]);
 		live.dispose();
 		expect(fake.out.at(-1)).toBe(`${up(1)}${SHOW}`);
+	});
+});
+
+describe("LiveSink exit hook", () => {
+	test("registers one exit listener per terminal, however many sinks use it", () => {
+		const fake = fakeTerminal();
+		for (let i = 0; i < 3; i++) {
+			const live = new LiveSink(fake.terminal, true);
+			live.draw([["a"]]);
+			live.dispose();
+		}
+		expect(fake.registrations).toBe(1);
+	});
+
+	test("shows the cursor on exit only while a sink on the terminal is active", () => {
+		const fake = fakeTerminal();
+		const first = new LiveSink(fake.terminal, true);
+		first.draw([["a"]]);
+		first.dispose();
+		const second = new LiveSink(fake.terminal, true);
+		second.draw([["b"]]);
+		fake.exit();
+		expect(fake.out.at(-1)).toBe(SHOW);
+		second.dispose();
+		const written = fake.out.length;
+		fake.exit();
+		expect(fake.out).toHaveLength(written);
 	});
 });
 

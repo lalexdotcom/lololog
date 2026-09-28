@@ -31,6 +31,11 @@ export function truncate(line: string, width: number): string {
 	return out;
 }
 
+// One exit listener per Terminal, not per LiveSink: RootLoggerImpl.#reselect makes a new LiveSink
+// on every color/format change, and one listener per instance leaks (MaxListenersExceededWarning
+// after enough toggles while a spinner runs).
+const exitHooked = new WeakMap<Terminal, Set<LiveSink>>();
+
 interface Hook {
 	stream: TerminalStream;
 	original: Write;
@@ -101,11 +106,16 @@ export class LiveSink implements Sink {
 	// Moving the cursor up cannot reach lines already scrolled off: a zone taller than the screen
 	// would redraw lower on every frame and pile copies into the scrollback.
 	#visible(): string[] {
-		const { columns = 80, rows = 24 } = this.#terminal.stdout;
+		const { columns: c, rows: r } = this.#terminal.stdout;
+		// Node reports 0/0 under `script … </dev/null`; treat that like the value is missing.
+		const columns = c || 80;
+		const rows = r || 24;
 		const room = Math.max(1, rows - 1);
 		let lines = this.#zone;
 		if (lines.length > room) lines = [...lines.slice(0, room - 1), `… +${lines.length - room + 1}`];
-		return lines.map((line) => truncate(line, Math.max(0, columns)));
+		// A zone line is one screen line by construction: a stray \r/\n would take several and
+		// desync #drawn from what actually scrolled, so every later erase misses lines.
+		return lines.map((line) => truncate(line.replace(/[\r\n]+/g, " "), Math.max(0, columns)));
 	}
 
 	#render(): string {
@@ -130,9 +140,16 @@ export class LiveSink implements Sink {
 	#hookExit(): void {
 		if (this.#exitHooked) return;
 		this.#exitHooked = true;
-		this.#terminal.onExit(() => {
-			if (this.#active) this.#write(SHOW_CURSOR);
-		});
+		let sinks = exitHooked.get(this.#terminal);
+		if (sinks === undefined) {
+			sinks = new Set<LiveSink>();
+			const registered = sinks;
+			exitHooked.set(this.#terminal, registered);
+			this.#terminal.onExit(() => {
+				for (const sink of registered) if (sink.#active) sink.#write(SHOW_CURSOR);
+			});
+		}
+		sinks.add(this);
 	}
 
 	#hook(): void {
