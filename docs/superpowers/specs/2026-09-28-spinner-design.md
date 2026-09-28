@@ -107,6 +107,8 @@ logger-core review).
   emoji stays one frame. Giving `glyph`, even the current string, resets the
   frame index to 0; each tick increments it modulo the frame count. Outside
   the `LiveSink`, only the first frame is used.
+  An empty `glyph` is drawn as a space, so its slot stays: `( )`, or a blank
+  before the bar.
 - `color`: a palette name (§ 3), applied to the glyph, its parentheses and the
   filled part of the bar. Kept across updates until changed.
 - `update`: stores message and options; nothing is written before the next
