@@ -52,8 +52,8 @@ describe("renderPretty", () => {
 		expect(renderPretty(record())).toEqual(["[WARN] hi"]);
 	});
 
-	test("puts the scope inside the brackets", () => {
-		expect(renderPretty(record({ scope: "db" }))).toEqual(["[WARN <db>] hi"]);
+	test("puts the scope after the brackets", () => {
+		expect(renderPretty(record({ scope: "db" }))).toEqual(["[WARN] <db> hi"]);
 	});
 
 	test("adds the date as its own bracketed block", () => {
@@ -72,9 +72,9 @@ describe("renderTty", () => {
 		expect(renderTty(record())).toEqual([`${BADGES.warn} hi`]);
 	});
 
-	test("writes the scope in grey outside the badge", () => {
+	test("paints the scope in chevrons as a badge in the wth colours, one space each side", () => {
 		expect(renderTty(record({ scope: "db" }))).toEqual([
-			`${BADGES.warn} \u001B[90m<db>\u001B[0m hi`,
+			`${BADGES.warn} \u001B[30;48;5;252m <db> \u001B[0m hi`,
 		]);
 	});
 
@@ -98,12 +98,12 @@ describe("renderBrowser", () => {
 		]);
 	});
 
-	test("writes the scope in grey outside the badge", () => {
+	test("draws the scope in chevrons, outlined in the wth background colour", () => {
 		expect(renderBrowser(record({ scope: "db" }))).toEqual([
 			"%cWARN%c %c<db>%c hi",
 			BADGE_CSS.warn,
 			"",
-			"color: grey",
+			"border: 1px solid lightgray; padding: 0 4px; border-radius: 4px",
 			"",
 		]);
 	});
@@ -113,7 +113,7 @@ describe("renderBrowser", () => {
 			`%cWARN%c %c<db>%c %c[${DATE}]%c hi`,
 			BADGE_CSS.warn,
 			"",
-			"color: grey",
+			"border: 1px solid lightgray; padding: 0 4px; border-radius: 4px",
 			"",
 			"color: lightgray",
 			"",
