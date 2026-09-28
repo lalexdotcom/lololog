@@ -17,11 +17,16 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
   (`src/renderers/*`), picked by `selectRenderer` (pure): browser (colour off
   → pretty) > json (format json, or unset and not a TTY) > logfmt > tty (TTY
   and colour) > pretty. TTY = `stdout.isTTY`, NO_COLOR read once at load.
-- Prefix: TTY badge centred on 9 columns, scope `<name>` in grey outside the
-  badge, `[date]` (Intl, runtime locale) in lightgray. Browser: `%c` badge
-  (`padding: 1px 4px; border-radius: 4px`, label not padded), scope in grey
-  outside it. The prefix is concatenated to a string first argument so the
-  caller's `%s` stays native.
+- Prefix: TTY badge centred on 9 columns, then a second badge ` <name> ` in
+  the wth colours (black on lightgray), then `[date]` (Intl, runtime locale)
+  in lightgray. Browser: `%c` badge (`padding: 1px 4px; border-radius: 4px`,
+  label not padded), scope `<name>` with no background or colour, outlined
+  `border: 1px solid lightgray; padding: 0 4px; border-radius: 4px` (black
+  text would vanish on a dark devtools theme). Pretty: `[LEVEL] <name>
+  [date]`, scope outside the brackets. Scope styles tried and rejected: TTY
+  without spaces, with `[name]`; browser with the full wth badge. The prefix
+  is concatenated to a string first argument so the caller's `%s` stays
+  native.
 - json/logfmt: own specifier parser → `msg` + `data` (absent / value /
   array); fields time (ISO, always), level, severity, scope, msg, data;
   `serialize` never throws (Error → name/message/stack/cause, cycles,
