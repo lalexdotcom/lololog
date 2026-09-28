@@ -1,7 +1,8 @@
 import { LEVEL_NAMES, LEVEL_STYLES, type Level } from "../levels";
-import { colorize } from "../style/ansi";
+import { filled, progressLabel, ratioOf } from "../spinner/progress";
+import { type Color, colorize } from "../style/ansi";
 import { formatDatetime, LABELS, prepend } from "./prefix";
-import type { Renderer } from "./record";
+import type { Renderer, SpinnerView } from "./record";
 
 const WIDTH = Math.max(...LEVEL_NAMES.map((level) => level.length)) + 2;
 
@@ -26,9 +27,26 @@ function scopeLabel(scope: string): string {
 	return label;
 }
 
-export const renderTty: Renderer = ({ level, time, scope, datetime, args }) => {
+function paint(text: string, color: Color | undefined): string {
+	return color === undefined || text === "" ? text : colorize(text, { color });
+}
+
+export function ttyIndicator({ status, progress, glyph, color }: SpinnerView): string {
+	if (progress.kind === "none") return paint(`(${glyph})`, color);
+	const ended = status !== "running";
+	// The final glyph and its space take the two cells the bar gives up, so a spinner's running
+	// and final lines keep the same width.
+	const width = ended ? 8 : 10;
+	const cells = filled(ratioOf(progress), width);
+	const bar = paint("━".repeat(cells), color) + paint("─".repeat(width - cells), "lightgray");
+	const text = `${bar} ${progressLabel(progress, true)}`;
+	return ended ? `${paint(glyph, color)} ${text}` : text;
+}
+
+export const renderTty: Renderer = ({ level, time, scope, datetime, args, spinner }) => {
 	let prefix = BADGES[level];
 	if (scope !== undefined) prefix += ` ${scopeLabel(scope)}`;
 	if (datetime) prefix += ` ${colorize(`[${formatDatetime(time)}]`, { color: "lightgray" })}`;
+	if (spinner !== undefined) prefix += ` ${ttyIndicator(spinner)}`;
 	return prepend(prefix, args);
 };
