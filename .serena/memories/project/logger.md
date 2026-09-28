@@ -35,6 +35,16 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
   above. json/logfmt carry `spinner: {id, status, …}`, id = per-root
   counter. Deliberately not handled: TERM=dumb, a partial write made before
   the zone exists, Ctrl+C leaving the cursor hidden.
+- `L.<level>.exec(message, task, options?)` (`src/spinner/exec.ts`, pure
+  `exec(spinner, task)`; logger.ts only wires it to `method.spin`): task is
+  `(onProgress: Spinner["update"]) => PromiseLike<T>` (thenables accepted,
+  sync callbacks rejected by design: a blocked loop never animates), returns
+  `Promise<T>`, no default for `T`. Resolve → `success()`, reject or sync
+  throw → `fail()` then rethrow unchanged; both without argument so the last
+  message set by `onProgress` wins; the error is not appended to the ✖ line
+  (the caller logs it). `success()` sits outside the try so a render throw
+  is not reported as a task failure. Filtered level → `NOOP_SPINNER`, task
+  still runs. `Task` is not exported from `src/index.ts`.
 - Prefix: TTY badge centred on 9 columns, then a second badge ` <name> ` in
   the wth colours (black on lightgray), then `[date]` (Intl, runtime locale)
   in lightgray. Browser: `%c` badge (`padding: 1px 4px; border-radius: 4px`,
