@@ -1,5 +1,5 @@
 import { L, LEVELS, type Level } from "../../../src/index";
-import { demo } from "../demo";
+import { demo, spinnerDemo } from "../demo";
 
 const levels = Object.keys(LEVELS) as Level[];
 
@@ -8,6 +8,7 @@ document.body.innerHTML = `
 	<h1>lololog playground</h1>
 	<p>Open the devtools console (F12), then click.</p>
 	<p><button id="demo">Run the full demo</button></p>
+	<p><button id="spinners">Run the spinners</button> <label>spinnerInterval <input id="interval" type="number" min="0" placeholder="5000" style="width: 6em"></label></p>
 	<p>Root: ${levels.map((level) => `<button data-level="${level}">${level}</button>`).join(" ")}</p>
 	<p>Scope <code>db</code>: ${levels.map((level) => `<button data-scope-level="${level}">${level}</button>`).join(" ")}</p>
 	<p>
@@ -22,6 +23,13 @@ const db = L.scope("db");
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector(selector) as T;
 
 $("#demo").onclick = () => demo(L);
+$("#spinners").onclick = () => {
+	void spinnerDemo(L);
+};
+$<HTMLInputElement>("#interval").onchange = (event) => {
+	const { value } = event.target as HTMLInputElement;
+	L.spinnerInterval = value === "" ? undefined : Number(value);
+};
 for (const button of document.querySelectorAll<HTMLButtonElement>("[data-level]")) {
 	const level = button.dataset.level as Level;
 	button.onclick = () => L[level]("root %s", level, { at: new Date().toISOString() });

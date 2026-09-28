@@ -22,6 +22,20 @@ In a terminal, each line starts with a coloured level badge; in browser
 devtools, with a styled badge. When stdout is not a terminal, lines are JSON
 by default; set `L.format` to `"logfmt"` or `"pretty"` to change it.
 
+Every level method can start a spinner:
+
+```ts
+const download = L.info.spin("Downloading", { total: files.length });
+download.update({ done: 3, total: files.length });
+download.success("Downloaded"); // or .fail(), or .close(message, { status: "skipped" })
+```
+
+In a terminal, spinners stay at the bottom and animate in place while other
+lines scroll above them. Elsewhere, each spinner writes a line every
+`L.spinnerInterval` milliseconds (5000 by default, 80 in a terminal; `0`
+writes only the first and last lines), and json/logfmt lines carry a
+`spinner` field.
+
 ## Install
 
 ```sh
