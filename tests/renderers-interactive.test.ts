@@ -203,3 +203,57 @@ describe("renderPretty spinner", () => {
 		]);
 	});
 });
+
+function barCss(color: string, pct: number): string {
+	return `font-family: monospace; background: linear-gradient(to right, ${color} 0%, ${color} ${pct}%, lightgrey ${pct}%, lightgrey 100%); padding: 0px 48px; line-height: 0.5; border-radius: 2px`;
+}
+
+describe("renderBrowser spinner", () => {
+	test("draws an unbounded spinner as a monospace glyph in its colour", () => {
+		expect(renderBrowser(spinning(view({ glyph: "↻" })))).toEqual([
+			"%cWARN%c %c(%s)%c %s",
+			BADGE_CSS.warn,
+			"",
+			"font-family: monospace; color: turquoise",
+			"↻",
+			"",
+			"load",
+		]);
+	});
+
+	test("draws a running bounded spinner as a gradient bar and a padded monospace label", () => {
+		expect(renderBrowser(spinning(view({ progress: { kind: "ratio", ratio: 0.42 } })))).toEqual([
+			"%cWARN%c %c %c %c%s%c %s",
+			BADGE_CSS.warn,
+			"",
+			barCss("turquoise", 42),
+			"",
+			"font-family: monospace",
+			" 42%",
+			"",
+			"load",
+		]);
+	});
+
+	test("puts the final glyph before the full-width bar, currentColor without a colour", () => {
+		const count = { kind: "count", done: 7, total: 120 } as const;
+		expect(
+			renderBrowser(
+				spinning(view({ status: "closed", progress: count, glyph: "●", color: undefined })),
+			),
+		).toEqual([
+			"%cWARN%c %c%s%c %c %c %c%s%c %s",
+			BADGE_CSS.warn,
+			"",
+			"font-family: monospace",
+			"●",
+			"",
+			barCss("currentColor", 5),
+			"",
+			"font-family: monospace",
+			"  7/120",
+			"",
+			"load",
+		]);
+	});
+});
