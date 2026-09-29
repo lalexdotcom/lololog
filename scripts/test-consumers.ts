@@ -6,6 +6,7 @@ import { basename, join, resolve } from "node:path";
 // Mirrors the `consumers` job matrix in .github/workflows/ci.yml.
 const fixtures = [
 	{ name: "node", browser: false },
+	{ name: "bun", browser: false },
 	{ name: "rsbuild", browser: true },
 	{ name: "rspack", browser: true },
 	{ name: "webpack", browser: true },

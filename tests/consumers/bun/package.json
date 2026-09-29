@@ -1,0 +1,14 @@
+{
+	"name": "consumer-bun",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"check": "bun index.mjs"
+	},
+	"devDependencies": {
+		"bun": "^1.4.2"
+	},
+	"allowScripts": {
+		"bun": true
+	}
+}

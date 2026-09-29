@@ -55,6 +55,24 @@ The spinner ends with `success()` when the task resolves and `fail()` when it
 rejects; `exec` returns the task's value or rethrows its error. `onProgress` is
 the spinner's `update`.
 
+`limit` shows the first lines of a call site and drops the rest:
+
+```ts
+for (const row of rows) L.limit(10).debug("row %o", row); // first 10 rows only
+L.limit("retry", 3).warn("retrying"); // every call keyed "retry" shares 3 lines
+L.once().warn("option `foo` is deprecated"); // shown once, however often reached
+```
+
+Without a key, the call site is read from a short stack trace, captured each
+time the level lets the call through. A key avoids the capture; a view hoisted
+out of the loop (`const capped = L.limit(10)`) captures once, and all its
+calls share its limit. Counters live as long as the logger; a key built from
+data (`L.once(userId)`) keeps one counter per value for that lifetime. A
+view's methods need their view: `const { warn } = L.once()` does not work.
+In a function that only relays a log, give it a key: under Safari and Bun
+(JavaScriptCore), a call in tail position (`const warn = (m) => L.once().warn(m)`) loses its call site, so
+each line calling `warn` would get its own counter.
+
 ## Install
 
 ```sh
