@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, rs, test } from "@rstest/core";
-import { callerFrame, callSite, type LimitHost } from "../src/limit";
+import { callerFrame, callSite, type LimitHost, siteKey } from "../src/limit";
 import { createRootLogger, type Environment } from "../src/logger";
 
 type WithLimit = ErrorConstructor & { stackTraceLimit?: number };
@@ -125,6 +125,57 @@ describe("callSite", () => {
 		} finally {
 			E.stackTraceLimit = saved;
 		}
+	});
+
+	test("keys a V8 call site as file:line:column, from CallSite objects", () => {
+		const key = probe();
+		expect(key).toMatch(/:\d+:\d+$/);
+		expect(key).not.toMatch(/^\s*at /);
+	});
+
+	test("restores Error.prepareStackTrace, and leaves none where there was none", () => {
+		// Not intersected with ErrorConstructor: Node's declares prepareStackTrace as required,
+		// and TS refuses `delete` through that intersection (TS2790).
+		const E = Error as unknown as { prepareStackTrace?: unknown };
+		const had = Object.hasOwn(Error, "prepareStackTrace");
+		const saved = E.prepareStackTrace;
+		const custom = () => "custom";
+		try {
+			E.prepareStackTrace = custom;
+			probe();
+			expect(E.prepareStackTrace).toBe(custom);
+			delete E.prepareStackTrace;
+			probe();
+			expect(Object.hasOwn(Error, "prepareStackTrace")).toBe(false);
+		} finally {
+			if (had) E.prepareStackTrace = saved;
+			else delete E.prepareStackTrace;
+		}
+	});
+});
+
+describe("siteKey", () => {
+	const site = (file: string, line: number, column: number) => ({
+		getFileName: () => file,
+		getLineNumber: () => line,
+		getColumnNumber: () => column,
+	});
+
+	test("keys the third CallSite as file:line:column", () => {
+		const sites = [site("limit.js", 5, 17), site("limit.js", 30, 22), site("main.js", 10, 14)];
+		expect(siteKey(sites)).toBe("main.js:10:14");
+		expect(siteKey(sites.slice(0, 2))).toBeUndefined();
+	});
+
+	test("falls back to the text frame when the engine ignored the hook", () => {
+		const stack = [
+			"Error",
+			"    at callSite (file:///app/limit.js:5:17)",
+			"    at LimitedView.debug (file:///app/limit.js:30:22)",
+			"    at main (file:///app/main.js:10:14)",
+		].join("\n");
+		expect(siteKey(stack)).toBe("    at main (file:///app/main.js:10:14)");
+		expect(siteKey(undefined)).toBeUndefined();
 	});
 });
 

@@ -10,7 +10,18 @@ export interface LimitHost {
 	admit(kind: KeyKind, key: string, n: number): boolean;
 }
 
-type WithLimit = ErrorConstructor & { stackTraceLimit?: number };
+interface V8CallSite {
+	getFileName(): string | null | undefined;
+	getLineNumber(): number | null;
+	getColumnNumber(): number | null;
+}
+
+type V8Error = ErrorConstructor & {
+	stackTraceLimit?: number;
+	prepareStackTrace?: (error: Error, sites: V8CallSite[]) => unknown;
+};
+
+const passSites = (_: Error, sites: V8CallSite[]) => sites;
 
 export function callerFrame(stack: string | undefined): string | undefined {
 	if (stack === undefined) return undefined;
@@ -24,16 +35,35 @@ export function callerFrame(stack: string | undefined): string | undefined {
 // Must be called by the level method itself: the caller is read as the third frame (callSite,
 // the level method, its caller).
 export function callSite(): string | undefined {
-	const E = Error as WithLimit;
+	const E = Error as V8Error;
 	const saved = E.stackTraceLimit;
 	// Not a number: the engine does not read it (SpiderMonkey), or someone deleted it to turn stacks
 	// off (V8). Setting it would leave a stray property, or turn stacks back on for everyone.
 	if (typeof saved !== "number") return callerFrame(new Error().stack);
+	const hadHook = Object.hasOwn(E, "prepareStackTrace");
+	const savedHook = E.prepareStackTrace;
 	// Three frames instead of V8's default ten: the capture costs per frame recorded.
 	E.stackTraceLimit = 3;
-	const stack = new Error().stack;
+	// V8 hands the frames over as CallSite objects instead of formatting them, and skips source
+	// maps: 1.6 µs against 2.5 µs for the text stack, 4.7 µs with source maps (Node 24).
+	E.prepareStackTrace = passSites;
+	const stack: unknown = new Error().stack;
+	if (hadHook) E.prepareStackTrace = savedHook;
+	// Cast to a plain optional-property type for the delete: Node's ErrorConstructor declares
+	// prepareStackTrace as required, and TS refuses `delete` through that intersection (TS2790).
+	else delete (E as { prepareStackTrace?: unknown }).prepareStackTrace;
 	E.stackTraceLimit = saved;
-	return callerFrame(stack);
+	return siteKey(stack);
+}
+
+export function siteKey(stack: unknown): string | undefined {
+	// An array means the engine called the prepareStackTrace hook (V8); anything else is its
+	// usual text stack, or none.
+	if (!Array.isArray(stack)) return callerFrame(stack as string | undefined);
+	const site = (stack as V8CallSite[])[2];
+	return site === undefined
+		? undefined
+		: `${site.getFileName()}:${site.getLineNumber()}:${site.getColumnNumber()}`;
 }
 
 export function checkLimit(n: unknown): number {

@@ -19,9 +19,8 @@ addition: it only narrows sharing, so the API stays), limited spinners.
   counts nor captures a stack, so it costs what a filtered log costs today.
 - Capturing a stack is the expensive part and runs only when the line would
   be emitted and no explicit key was given.
-- `Error.stackTraceLimit` (and `Error.prepareStackTrace`, if adopted) are
-  process-wide: changed only around a synchronous capture, restored right
-  after.
+- `Error.stackTraceLimit` and `Error.prepareStackTrace` are process-wide:
+  changed only around a synchronous capture, restored right after.
 - A logger never drops a line because of the environment: no readable stack
   means no limit, not silence.
 
@@ -39,7 +38,7 @@ addition: it only narrows sharing, so the API stays), limited spinners.
 | Key spaces | Explicit keys and call sites in two separate maps: no collision |
 | View methods | Plain call only, no `spin` or `exec`; on the prototype, not per-view closures |
 | `n` validation | Integer ≥ 0, otherwise `TypeError`; `0` silences everything |
-| Stack capture | `Error.stackTraceLimit = 3`, `new Error().stack`, restore; the frame line is the key as is |
+| Stack capture | `Error.stackTraceLimit = 3` and `Error.prepareStackTrace` returning the CallSite array, `new Error().stack`, restore both; V8 key `file:line:column`, text frame line elsewhere |
 
 ## 1. Public API
 
@@ -99,22 +98,27 @@ frames are always: `callSite`, the level method, the caller.
 ```ts
 const saved = Error.stackTraceLimit;
 Error.stackTraceLimit = 3;
+const savedHook = Error.prepareStackTrace;
+Error.prepareStackTrace = (_, sites) => sites;
 const stack = new Error().stack;
+Error.prepareStackTrace = savedHook; // or delete, if there was none
 Error.stackTraceLimit = saved;
-return stack === undefined ? undefined : callerFrame(stack);
+return siteKey(stack);
 ```
 
-`callerFrame(stack)` is pure: it drops V8's leading `Error` line (the only
-engine whose `.stack` starts with the message), then returns the third line,
-untouched. The line carries file, line and column, so two calls on one line
-get two keys; parsing it would buy nothing. SpiderMonkey ignores
-`stackTraceLimit`: the stack is longer, the index still holds.
+One capture serves both paths: an array means the engine called the
+`prepareStackTrace` hook (V8), so `siteKey` reads the third `CallSite` as
+`file:line:column`; anything else is the usual text stack (or none), and
+`siteKey` falls back to `callerFrame`. `callerFrame(stack)` is pure: it drops
+V8's leading `Error` line (the only engine whose `.stack` starts with the
+message), then returns the third line, untouched. The line carries file, line
+and column, so two calls on one line get two keys; parsing it would buy
+nothing. SpiderMonkey ignores `stackTraceLimit`: the stack is longer, the
+index still holds.
 
-`Error.prepareStackTrace` (V8 only) would hand over `CallSite` objects and
-skip formatting the frames. It adds a second code path and a second global
-to swap, for a gain unknown with three frames. It is adopted only if the
-benchmark of § 5 shows a clear win on Node, with and without
-`--enable-source-maps`.
+Adopted after the benchmark (Node v24.21.0, median ns per capture): text
+stack 2 481, or 4 672 with source maps; CallSite objects 1 602, or 1 529 with
+source maps.
 
 ## 4. Modules
 
@@ -157,7 +161,10 @@ Every test file runs in both rstest projects unless marked Node only.
 - Benchmark (throwaway, `.scratchpad/`, Node only): a filtered `limit` call,
   an emitted one with a key, keyless inline, keyless hoisted, `once`; the
   `stackTraceLimit` path against `prepareStackTrace`, with and without
-  `--enable-source-maps`. Results reported to the user before § 3 is settled.
+  `--enable-source-maps`. Result: § 3.
+- `prepareStackTrace` restored (own property kept or left absent); `siteKey`
+  turns a CallSite array into `file:line:column` and a text stack into its
+  caller frame.
 - Playground: `demo` gains a loop with `L.limit(3)`, `L.once` and a shared
   key.
 
