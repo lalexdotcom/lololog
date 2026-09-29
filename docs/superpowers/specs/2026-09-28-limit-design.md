@@ -97,17 +97,20 @@ frames are always: `callSite`, the level method, the caller.
 
 ```ts
 const saved = Error.stackTraceLimit;
-Error.stackTraceLimit = 3;
 const savedHook = Error.prepareStackTrace;
 Error.prepareStackTrace = (_, sites) => sites;
-let stack;
+let key;
 try {
-	stack = new Error().stack;
+	for (const depth of [3, 10]) {
+		Error.stackTraceLimit = depth;
+		key = siteKey(new Error().stack);
+		if (key !== null) break; // null: only native frames so far, capture deeper
+	}
 } finally {
 	Error.prepareStackTrace = savedHook; // or delete, if there was none
 	Error.stackTraceLimit = saved;
 }
-return siteKey(stack);
+return key ?? undefined;
 ```
 
 The capture runs in a `try`: a hostile `stack` getter, or a stack overflow
@@ -120,17 +123,23 @@ One capture serves both paths: an array means the engine called the
 `file:line:column`; anything else is the usual text stack (or none), and
 `siteKey` falls back to `callerFrame`. `callerFrame(stack)` is pure: it drops
 V8's leading `Error` line (the only engine whose `.stack` starts with the
-message), then returns the third line, untouched. The line carries file, line
+message), then returns the third line (or the first non-native one after it),
+untouched. The line carries file, line
 and column, so two calls on one line get two keys; parsing it would buy
 nothing. SpiderMonkey ignores `stackTraceLimit`: the stack is longer, the
 index still holds.
 
-A native frame (JavaScriptCore's proper tail calls, in strict code, drop the
-caller's own frame and leave the trampoline, e.g. `forEach@[native code]`) is
-no readable site, so the call emits uncounted rather than share a counter with
-whatever else lands on that frame; a tail call whose third frame is a user
-function (not the trampoline) still keys on that function's caller as usual, a
-known limit of reading the site positionally.
+Native frames are skipped. JavaScriptCore's proper tail calls (strict code:
+every ES module) drop the frame of a function that tail-calls, so in
+`rows.forEach((row) => L.limit(3).info(row))` the third frame is
+`forEach@[native code]`; the key is the first non-native frame from there on,
+the line that called `forEach`. When the three captured frames end on native
+ones, `siteKey` returns `null` and `callSite` captures once more with ten
+frames; V8 and SpiderMonkey have no tail calls, never reach that second
+capture, and keep the three-frame cost. Same code for every engine, no engine
+detection. Still a known limit under JavaScriptCore: a user function that
+tail-calls a level method (`const warn = (m) => L.once().warn(m)`) loses its
+own frame, so the key names the line that called it, one counter per caller.
 
 Adopted after the benchmark (Node v24.21.0, median ns per capture): text
 stack 2 481, or 4 672 with source maps; CallSite objects 1 602, or 1 529 with

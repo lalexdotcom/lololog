@@ -22,17 +22,24 @@ type V8Error = ErrorConstructor & {
 	prepareStackTrace?: (error: Error, sites: V8CallSite[]) => unknown;
 };
 
+// Three frames instead of V8's default ten: the capture costs per frame recorded. The deeper
+// capture runs only when the caller's slot held native frames only (see callerFrame), which V8 and
+// SpiderMonkey never produce: they keep the three-frame cost.
+const DEPTHS = [3, 10];
+
 const passSites = (_: Error, sites: V8CallSite[]) => sites;
 
-export function callerFrame(stack: string | undefined): string | undefined {
+// null: the caller's slot and every frame after it are native. A tail call (JavaScriptCore, strict
+// mode) dropped the caller's frame, leaving the native function that called it back (forEach); a
+// deeper capture reaches the line that called that function.
+export function callerFrame(stack: string | undefined): string | null | undefined {
 	if (stack === undefined) return undefined;
 	const lines = stack.split("\n");
 	// V8 alone opens the stack with the error's own line: "Error" or "Error: message".
 	if (/^Error/.test(lines[0])) lines.shift();
-	const frame = lines[2] || undefined;
-	// A tail call (JSC, strict mode) drops the caller's frame, leaving the native trampoline: no
-	// readable site, so the call emits uncounted rather than sharing a counter with unrelated lines.
-	return frame?.includes("[native code]") ? undefined : frame;
+	if (!lines[2]) return undefined;
+	for (let i = 2; lines[i]; i++) if (!lines[i].includes("[native code]")) return lines[i];
+	return null;
 }
 
 // Must be called by the level method itself: the caller is read as the third frame (callSite,
@@ -42,19 +49,22 @@ export function callSite(): string | undefined {
 	const saved = E.stackTraceLimit;
 	// Not a number: the engine does not read it (SpiderMonkey), or someone deleted it to turn stacks
 	// off (V8). Setting it would leave a stray property, or turn stacks back on for everyone.
-	if (typeof saved !== "number") return callerFrame(new Error().stack);
+	if (typeof saved !== "number") return callerFrame(new Error().stack) ?? undefined;
 	const hadHook = Object.hasOwn(E, "prepareStackTrace");
 	const savedHook = E.prepareStackTrace;
-	// Three frames instead of V8's default ten: the capture costs per frame recorded.
-	E.stackTraceLimit = 3;
 	// V8 hands the frames over as CallSite objects instead of formatting them, and skips source
 	// maps: 1.6 µs against 2.5 µs for the text stack, 4.7 µs with source maps (Node 24).
 	E.prepareStackTrace = passSites;
-	let stack: unknown;
+	let key: string | null | undefined;
 	try {
-		// The capture itself can throw (a hostile `stack` getter, a stack overflow unwinding through
-		// here): both globals must come back regardless, or every later capture in the process breaks.
-		stack = new Error().stack;
+		for (const depth of DEPTHS) {
+			E.stackTraceLimit = depth;
+			// The capture itself can throw (a hostile `stack` getter, a stack overflow unwinding
+			// through here): both globals must come back regardless, or every later capture in the
+			// process breaks.
+			key = siteKey(new Error().stack);
+			if (key !== null) break;
+		}
 	} finally {
 		if (hadHook) E.prepareStackTrace = savedHook;
 		// Cast to a plain optional-property type for the delete: Node's ErrorConstructor declares
@@ -62,20 +72,26 @@ export function callSite(): string | undefined {
 		else delete (E as { prepareStackTrace?: unknown }).prepareStackTrace;
 		E.stackTraceLimit = saved;
 	}
-	return siteKey(stack);
+	return key ?? undefined;
 }
 
-export function siteKey(stack: unknown): string | undefined {
+export function siteKey(stack: unknown): string | null | undefined {
 	// An array means the engine called the prepareStackTrace hook (V8); anything else is its
-	// usual text stack, or none.
+	// usual text stack, or none. null as in callerFrame: only native frames from the caller's slot.
 	if (!Array.isArray(stack)) return typeof stack === "string" ? callerFrame(stack) : undefined;
-	const site = (stack as V8CallSite[])[2];
-	// A native frame (JSC tail call) has no readable site: emit uncounted rather than share a key.
-	if (site === undefined || site.isNative?.()) return undefined;
-	const file = site.getFileName();
-	// eval'd code (e.g. webpack's default dev `devtool`) has no file name; String(site) keeps the
-	// origin ("inner (webpack://app/./src/a.js:1:27)") instead of collapsing every eval to one key.
-	return file == null ? String(site) : `${file}:${site.getLineNumber()}:${site.getColumnNumber()}`;
+	const sites = stack as V8CallSite[];
+	if (sites.length < 3) return undefined;
+	for (let i = 2; i < sites.length; i++) {
+		const site = sites[i];
+		if (site.isNative?.()) continue;
+		const file = site.getFileName();
+		// eval'd code (e.g. webpack's default dev `devtool`) has no file name; String(site) keeps the
+		// origin ("inner (webpack://app/./src/a.js:1:27)") instead of collapsing every eval to one key.
+		return file == null
+			? String(site)
+			: `${file}:${site.getLineNumber()}:${site.getColumnNumber()}`;
+	}
+	return null;
 }
 
 export function checkLimit(n: unknown): number {

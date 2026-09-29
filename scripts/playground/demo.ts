@@ -22,8 +22,8 @@ export function demo(L: RootLogger): void {
 	L.datetime = undefined;
 	for (let i = 1; i <= 5; i++) L.limit(3).debug(`limited ${i} of 5, limit 3`);
 	for (let i = 1; i <= 5; i++) L.once().warn(`once ${i} of 5`);
-	// A tail call: JavaScriptCore drops the arrow's frame, so the site reads as native and each
-	// line shows uncounted (5 lines in Safari, 3 in V8).
+	// A tail call: JavaScriptCore drops the arrow's frame, leaving forEach's native frame where the
+	// caller's should be; the key skips it for the line calling forEach (3 lines in every engine).
 	// biome-ignore lint/suspicious/useIterableCallbackReturn: the expression body is that tail call
 	[1, 2, 3, 4, 5].forEach((i) => L.limit(3).info(`forEach ${i} of 5, limit 3`));
 	L.limit("retry", 2).notice("retry a, key shared with the next two");

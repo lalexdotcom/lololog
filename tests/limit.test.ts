@@ -92,13 +92,23 @@ describe("callerFrame", () => {
 		expect(callerFrame(undefined)).toBeUndefined();
 	});
 
-	test("returns undefined for a JavaScriptCore tail call (native trampoline, no readable caller)", () => {
+	test("skips the native frame a JavaScriptCore tail call leaves in the caller's slot", () => {
+		const stack = [
+			"callSite@http://localhost/limit.js:5:17",
+			"debug@http://localhost/limit.js:30:22",
+			"forEach@[native code]",
+			"main@http://localhost/main.js:10:14",
+		].join("\n");
+		expect(callerFrame(stack)).toBe("main@http://localhost/main.js:10:14");
+	});
+
+	test("returns null when only native frames follow, so a deeper capture can reach the caller", () => {
 		const stack = [
 			"callSite@http://localhost/limit.js:5:17",
 			"debug@http://localhost/limit.js:30:22",
 			"forEach@[native code]",
 		].join("\n");
-		expect(callerFrame(stack)).toBeUndefined();
+		expect(callerFrame(stack)).toBeNull();
 	});
 });
 
@@ -254,13 +264,11 @@ describe("siteKey", () => {
 		expect(siteKey(sites)).toBe("inner (webpack://app/./src/a.js:1:27)");
 	});
 
-	test("returns undefined for a native call site (JSC tail call, no readable caller)", () => {
-		const sites = [
-			site("limit.js", 5, 17),
-			site("limit.js", 30, 22),
-			{ ...site("native", 0, 0), isNative: () => true },
-		];
-		expect(siteKey(sites)).toBeUndefined();
+	test("skips native call sites, and returns null when nothing else follows", () => {
+		const native = { ...site("native", 0, 0), isNative: () => true };
+		const sites = [site("limit.js", 5, 17), site("limit.js", 30, 22), native];
+		expect(siteKey([...sites, site("main.js", 10, 14)])).toBe("main.js:10:14");
+		expect(siteKey(sites)).toBeNull();
 	});
 });
 
@@ -323,6 +331,13 @@ describe("limit", () => {
 		capped.warn("b");
 		capped.error("c");
 		expect(messages()).toEqual(["a", "b"]);
+	});
+
+	test("counts a site called back by a native function in tail position", () => {
+		const root = createRootLogger(PIPE);
+		// biome-ignore lint/suspicious/useIterableCallbackReturn: the expression body is the tail call JavaScriptCore drops the frame of, leaving forEach's native frame as the third
+		[1, 2, 3, 4, 5].forEach((i) => root.limit(3).info(`row ${i}`));
+		expect(messages()).toEqual(["row 1", "row 2", "row 3"]);
 	});
 
 	test("does not count filtered calls", () => {
