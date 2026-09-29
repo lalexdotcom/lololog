@@ -45,6 +45,22 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
   (the caller logs it). `success()` sits outside the try so a render throw
   is not reported as a task failure. Filtered level → `NOOP_SPINNER`, task
   still runs. `Task` is not exported from `src/index.ts`.
+- Limits (spec `docs/superpowers/specs/2026-09-28-limit-design.md`, shipped
+  in the feat/limit merge): `L.limit(n)`, `L.limit(key, n)`, `L.once()`,
+  `L.once(key)` (a call, exactly `limit(1)` / `limit(key, 1)`), on root and
+  scopes; views (`src/limit.ts`, prototype methods, plain call only, no
+  spin/exec). Filter first (`passes`): filtered calls neither count nor
+  capture. Counters on the root: two maps (explicit keys, call sites), never
+  reset. Keyless key = call site from `callSite()`, called directly by the
+  view's level method (frames: callSite, method, caller): `stackTraceLimit`
+  3 + `prepareStackTrace` hook returning CallSite objects (V8, Bun) →
+  `file:line:column` (`String(site)` for eval'd code), text frame elsewhere;
+  both globals restored in `finally`. Native frames skipped (JSC tail calls
+  leave `forEach@[native code]`), second capture at 10 frames only then.
+  No readable stack → emits uncounted. Known limit: under JSC (Safari, Bun) a
+  helper that tail-calls a level method loses its frame (README: give it a
+  key). Measured Node 24: keyless past cap ~2.2 µs, keyed 17 ns, filtered
+  ~6 ns, emitted json line ~0.8 µs.
 - Prefix: TTY badge centred on 9 columns, then a second badge ` <name> ` in
   the wth colours (black on lightgray), then `[date]` (Intl, runtime locale)
   in lightgray. Browser: `%c` badge (`padding: 1px 4px; border-radius: 4px`,

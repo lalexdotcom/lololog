@@ -1,9 +1,16 @@
 # Stack and commands
 
 pnpm 12 (pinned by `packageManager`), TypeScript 7 (tsgo), Biome 2.5, rslib
-(build + .d.ts), rstest 0.12 with `@rstest/browser` (Playwright Chromium),
-publint, @arethetypeswrong/cli, tsx. actionlint + ShellCheck come from the
-devcontainer.
+(build + .d.ts), rstest 0.12 with `@rstest/browser` (Playwright Chromium,
+Firefox, WebKit), publint, @arethetypeswrong/cli, tsx, bun (devDependency, for
+trying Bun by hand; the `bun` consumer fixture installs its own). actionlint +
+ShellCheck come from the devcontainer.
+
+Never `pnpm add bun`: pnpm 12 takes it as a package-manager switch and
+rewrites `packageManager` into `devEngines.packageManager: bun`, even with a
+version. Edit the range in package.json, then `pnpm install`. bun's
+postinstall is allowed in `pnpm-workspace.yaml` (`allowBuilds`) and, for npm
+11, in the fixture's `allowScripts`.
 
 | Command | Does |
 |---|---|
@@ -11,7 +18,7 @@ devcontainer.
 | `pnpm typecheck` | `tsc` on src alone, then on src + tests + scripts + configs |
 | `pnpm lint` | `biome check` (CI runs `biome ci`) |
 | `pnpm lint:package` | publint + attw (`esm-only`); needs `dist/` |
-| `pnpm test` | rstest, projects `node` and `browser` |
+| `pnpm test` | rstest, projects `node`, `browser-chromium`, `browser-firefox`, `browser-webkit`, one run each |
 | `pnpm test:consumers [fixture...]` | builds, packs, runs the consumer fixtures |
 | `actionlint` | lints `.github/workflows/` |
 | `pnpm playground:tty` / `:no-tty` / `:json` / `:logfmt` | runs `scripts/playground/demo.ts` against `src/` in that output (no-tty re-runs itself with piped stdout per format) |
