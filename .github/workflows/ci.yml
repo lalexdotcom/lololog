@@ -52,9 +52,13 @@ jobs:
       - run: pnpm exec rstest run --project node
       # The browser result does not depend on the Node version running the tests.
       - if: matrix.node == 24
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      # One run per browser: rstest refuses two browsers in one run.
       - if: matrix.node == 24
-        run: pnpm exec rstest run --project browser
+        run: |
+          for browser in chromium firefox webkit; do
+            pnpm exec rstest run --project "browser-$browser"
+          done
 
   consumers:
     needs: check

@@ -32,10 +32,11 @@ fi
 
 pnpm install
 
-# Chromium only: all three browsers cost ~200 MB per rebuild. `pnpm exec`, not
-# `dlx`: dlx fetches the latest Playwright, whose browsers the pinned one cannot
-# launch.
-pnpm exec playwright install --with-deps chromium
+# All three engines (V8, SpiderMonkey, JavaScriptCore): limit's call-site keys
+# depend on each one's stack format and tail calls, which Chromium alone missed.
+# `pnpm exec`, not `dlx`: dlx fetches the latest Playwright, whose browsers the
+# pinned one cannot launch.
+pnpm exec playwright install --with-deps chromium firefox webkit
 
 # --auto-mine fills the palace (--yes alone still prompts, and a closed stdin
 # declines); re-runs skip files already mined. --no-llm: no Ollama here.

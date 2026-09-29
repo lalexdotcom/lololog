@@ -4,9 +4,12 @@ import { createRootLogger, type Environment } from "../src/logger";
 
 type WithLimit = ErrorConstructor & { stackTraceLimit?: number };
 
-// Stands in for a level method: callSite() returns the frame that called probe.
+// Stands in for a level method: callSite() returns the frame that called probe. Not
+// `return callSite()`: JavaScriptCore drops the frame of a function that tail-calls, and the key
+// would name probe's caller's caller. The helpers below use block bodies for the same reason.
 function probe(): string | undefined {
-	return callSite();
+	const key = callSite();
+	return key;
 }
 
 const PIPE: Environment = { isBrowser: false, tty: false, noColor: false };
@@ -136,7 +139,7 @@ describe("callSite", () => {
 		}
 	});
 
-	test("keys a V8 call site as file:line:column, from CallSite objects", () => {
+	test("keys a call site by file, line and column, not V8's formatted frame", () => {
 		const key = probe();
 		expect(key).toMatch(/:\d+:\d+$/);
 		expect(key).not.toMatch(/^\s*at /);
@@ -325,7 +328,9 @@ describe("limit", () => {
 	test("does not count filtered calls", () => {
 		const root = createRootLogger(PIPE);
 		const db = root.scope("db");
-		const log = (i: number) => db.limit(2).info(`row ${i}`);
+		const log = (i: number) => {
+			db.limit(2).info(`row ${i}`);
+		};
 		root.level = "warn";
 		log(0);
 		root.level = "wth";
@@ -422,7 +427,9 @@ describe("once", () => {
 
 	test("does not count filtered calls, nor capture a stack for them", () => {
 		const root = createRootLogger(PIPE);
-		const log = () => root.once().info("x");
+		const log = () => {
+			root.once().info("x");
+		};
 		root.level = "warn";
 		expect(captures(log)).toBe(0);
 		root.level = "wth";

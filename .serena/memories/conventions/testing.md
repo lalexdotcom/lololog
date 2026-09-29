@@ -1,8 +1,14 @@
 # Testing
 
 - Unit tests live in `tests/` (sibling of `src/`), `*.test.ts`. Every test file
-  runs in both rstest projects, `node` and `browser`; branch on
-  `typeof window === "undefined"` when the expectation differs.
+  runs in four rstest projects: `node`, `browser-chromium`, `browser-firefox`,
+  `browser-webkit` (one per JS engine); branch on
+  `typeof window === "undefined"` when the expectation differs. rstest 0.12
+  refuses two browsers in one run, so `pnpm test` and CI run each project on
+  its own (`rstest run --project <name>`).
+- JavaScriptCore (WebKit, Safari, Bun) drops the frame of a function that
+  tail-calls: a test helper that calls into lololog must not do it in tail
+  position (`return f()`, arrow expression body), or stack-based keys shift.
 - Environment detection lives in pure predicates taking a `scope`; the
   exported flags apply them to `globalThis`. Tests simulate other runtimes by
   passing plain objects to the predicates, and check the flags against the
