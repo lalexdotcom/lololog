@@ -15,6 +15,10 @@ export function demo(L: RootLogger): void {
 	L.datetime = undefined;
 	for (let i = 1; i <= 5; i++) L.limit(3).debug(`limited ${i} of 5, limit 3`);
 	for (let i = 1; i <= 5; i++) L.once().warn(`once ${i} of 5`);
+	// A tail call: JavaScriptCore drops the arrow's frame, so the site reads as native and each
+	// line shows uncounted (5 lines in Safari, 3 in V8).
+	// biome-ignore lint/suspicious/useIterableCallbackReturn: the expression body is that tail call
+	[1, 2, 3, 4, 5].forEach((i) => L.limit(3).info(`forEach ${i} of 5, limit 3`));
 	L.limit("retry", 2).notice("retry a, key shared with the next two");
 	db.limit("retry", 2).notice("retry b, from the db scope");
 	L.limit("retry", 2).notice("retry c: never shown");
