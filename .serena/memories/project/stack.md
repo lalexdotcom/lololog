@@ -9,8 +9,10 @@ ShellCheck come from the devcontainer.
 Never `pnpm add bun`: pnpm 12 takes it as a package-manager switch and
 rewrites `packageManager` into `devEngines.packageManager: bun`, even with a
 version. Edit the range in package.json, then `pnpm install`. bun's
-postinstall is allowed in `pnpm-workspace.yaml` (`allowBuilds`) and, for npm
-11, in the fixture's `allowScripts`.
+postinstall is allowed in `pnpm-workspace.yaml` (`allowBuilds`: pnpm fails
+the install without it). The fixture's `allowScripts` only silences npm 11's
+warning: with `strict-allow-scripts` false (the default), npm runs the
+postinstall either way.
 
 | Command | Does |
 |---|---|
