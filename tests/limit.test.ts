@@ -368,6 +368,13 @@ describe("limit", () => {
 			expect(() => root.limit("k", n)).toThrow(TypeError);
 		}
 		expect(() => (root.limit as unknown as (key: string) => unknown)("k")).toThrow(TypeError);
+		expect(() => root.limit("k", "3" as unknown as number)).toThrow(TypeError);
+	});
+
+	test("shows nothing at 0 on an explicit key", () => {
+		const root = createRootLogger(PIPE);
+		for (let i = 0; i < 2; i++) root.limit("k", 0).info("never");
+		expect(messages()).toEqual([]);
 	});
 
 	test("offers the plain call only", () => {
