@@ -6,6 +6,9 @@
   project, index and memories are bound to the main checkout).
 - Implementation runs in subagent mode by default
   (`superpowers:subagent-driven-development`); inline only on request.
+- Once the user validates a plan, commit it and start executing it in
+  subagent mode right away: no separate go is needed (user's standing
+  instruction, 2026-09-29). Gates written into the plan itself still stop.
 - Before delivering a branch: `pnpm exec biome ci`, `pnpm typecheck`,
   `pnpm build`, `pnpm lint:package`, `pnpm test`, `pnpm test:consumers` all
   green.
