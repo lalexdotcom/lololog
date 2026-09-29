@@ -6,7 +6,7 @@ Branch: `feat/limit`
 ## Goal
 
 Cap how many lines a log call shows. `L.limit(10).debug(…)` in a loop shows
-the first 10 lines and stays silent after; `L.once.debug(…)` shows one. A key
+the first 10 lines and stays silent after; `L.once().debug(…)` shows one. A key
 shares one cap between several call sites; without a key, the call site is
 the key, read from the stack.
 
@@ -29,13 +29,13 @@ addition: it only narrows sharing, so the API stays), limited spinners.
 
 | Topic | Decision |
 |---|---|
-| Entry points | `limit(n)`, `limit(key, n)`, `once`, `once(key)`, on the root and on every scope |
+| Entry points | `limit(n)`, `limit(key, n)`, `once()`, `once(key)`, on the root and on every scope |
 | What counts | Lines emitted; filtered calls do not count |
 | Past the cap | Silence; no summary line |
 | Explicit key | One counter per root, shared by every level and every scope |
 | Different `n`, same key | Each call emits while the shared counter is below its own `n` |
 | Keyless view | Keyed by the call site of its first emitted line, kept for the view's life |
-| `L.once.<level>` | Keyed by its call site at every emitted call (no view to hold a key) |
+| `once(key?)` | Exactly `limit(1)` / `limit(key, 1)`: a view, keyed like any view |
 | Key spaces | Explicit keys and call sites in two separate maps: no collision |
 | View methods | Plain call only, no `spin` or `exec`; on the prototype, not per-view closures |
 | `n` validation | Integer ≥ 0, otherwise `TypeError`; `0` silences everything |
@@ -46,21 +46,19 @@ addition: it only narrows sharing, so the API stays), limited spinners.
 ```ts
 type LimitedMethods = { [L in Level]: (...args: unknown[]) => void };
 
-type Once = ((key: string) => LimitedMethods) & LimitedMethods;
-
 interface Logger {
 	limit(n: number): LimitedMethods;
 	limit(key: string, n: number): LimitedMethods;
-	once: Once;
+	once(key?: string): LimitedMethods;
 }
 ```
 
-`LimitedMethods` and `Once` are not exported from `src/index.ts`; they reach
-consumers through `Logger`.
+`LimitedMethods` is not exported from `src/index.ts`; it reaches consumers
+through `Logger`.
 
 ```ts
 for (const row of rows) L.limit(10).debug("row %o", row); // first 10 rows
-for (const row of rows) L.once.warn("legacy row format"); // one warning
+for (const row of rows) L.once().warn("legacy row format"); // one warning
 
 const capped = L.limit(5); // hoisted: one stack capture, at its first line
 for (const row of batch) capped.info("row %o", row);
@@ -121,18 +119,17 @@ benchmark of § 5 shows a clear win on Node, with and without
 ## 4. Modules
 
 - `src/limit.ts` (new): `callSite`, `callerFrame`, the view class (level
-  methods installed on its prototype in a loop over `LEVEL_NAMES`),
-  `createOnce(logger)`. No import from `src/logger.ts`: it receives what it
-  needs through a small interface (`passes`, `write`, `admit`).
+  methods installed on its prototype in a loop over `LEVEL_NAMES`). No import
+  from `src/logger.ts`: it receives what it needs through a small interface
+  (`passes`, `write`, `admit`).
 - `src/logger.ts`: `passes` on both loggers; `limit` and `once` on
-  `BaseLogger`, `once` built in the constructor as own closures like the level
-  methods, so `L.once.debug` allocates nothing; `admit(kind, key, n)` on the
-  root.
+  `BaseLogger`, calling `createLimited(this, 1, key)`; `admit(kind, key, n)`
+  on the root.
 
-`L.limit(…)` and `L.once(key)` allocate one small view per call. View methods
+`L.limit(…)` and `L.once(…)` allocate one small view per call. View methods
 live on the prototype: own closures would allocate eleven functions per loop
 turn. The cost is that a detached view method (`const d = L.limit(10).debug`)
-loses its `this`, unlike `L.debug` and `L.once.debug`.
+loses its `this`, unlike `L.debug`.
 
 ## 5. Testing
 
@@ -166,7 +163,7 @@ Every test file runs in both rstest projects unless marked Node only.
 
 ## Success criteria
 
-- `for (…) L.limit(10).debug(…)` shows 10 lines; `L.once.warn(…)` in a loop
+- `for (…) L.limit(10).debug(…)` shows 10 lines; `L.once().warn(…)` in a loop
   shows one.
 - A filtered limited call captures no stack.
 - After any call, `Error.stackTraceLimit` holds the value it had before.

@@ -60,7 +60,7 @@ the spinner's `update`.
 ```ts
 for (const row of rows) L.limit(10).debug("row %o", row); // first 10 rows only
 L.limit("retry", 3).warn("retrying"); // every call keyed "retry" shares 3 lines
-L.once.warn("option `foo` is deprecated"); // shown once, however often reached
+L.once().warn("option `foo` is deprecated"); // shown once, however often reached
 ```
 
 Without a key, the call site is read from a short stack trace, captured each
