@@ -65,8 +65,10 @@ L.once().warn("option `foo` is deprecated"); // shown once, however often reache
 
 Without a key, the call site is read from a short stack trace, captured each
 time the level lets the call through. A key avoids the capture; a view hoisted
-out of the loop (`const rows = L.limit(10)`) captures once, and all its calls
-share its limit.
+out of the loop (`const capped = L.limit(10)`) captures once, and all its
+calls share its limit. Counters live as long as the logger; a key built from
+data (`L.once(userId)`) keeps one counter per value for that lifetime. A
+view's methods need their view: `const { warn } = L.once()` does not work.
 
 ## Install
 
