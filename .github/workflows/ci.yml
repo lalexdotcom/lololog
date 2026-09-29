@@ -70,6 +70,8 @@ jobs:
         include:
           - fixture: node
             browser: false
+          - fixture: bun
+            browser: false
           - fixture: rsbuild
             browser: true
           - fixture: rspack

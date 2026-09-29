@@ -1,4 +1,5 @@
-# pnpm 11+ fails install on unreviewed build scripts. esbuild (via tsx) has one,
-# which only fetches its platform binary.
+# pnpm 11+ fails install on unreviewed build scripts. esbuild (via tsx) and bun
+# have one, which only fetches or links their platform binary.
 allowBuilds:
+  bun: true
   esbuild: true

@@ -69,8 +69,8 @@ out of the loop (`const capped = L.limit(10)`) captures once, and all its
 calls share its limit. Counters live as long as the logger; a key built from
 data (`L.once(userId)`) keeps one counter per value for that lifetime. A
 view's methods need their view: `const { warn } = L.once()` does not work.
-In a function that only relays a log, give it a key: under Safari, a call in
-tail position (`const warn = (m) => L.once().warn(m)`) loses its call site, so
+In a function that only relays a log, give it a key: under Safari and Bun
+(JavaScriptCore), a call in tail position (`const warn = (m) => L.once().warn(m)`) loses its call site, so
 each line calling `warn` would get its own counter.
 
 ## Install
