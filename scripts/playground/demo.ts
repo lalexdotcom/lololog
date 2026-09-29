@@ -13,6 +13,11 @@ export function demo(L: RootLogger): void {
 	L.success("root with datetime");
 	db.notice("scope with datetime");
 	L.datetime = undefined;
+	for (let i = 1; i <= 5; i++) L.limit(3).debug(`limited ${i} of 5, limit 3`);
+	for (let i = 1; i <= 5; i++) L.once().warn(`once ${i} of 5`);
+	L.limit("retry", 2).notice("retry a, key shared with the next two");
+	db.limit("retry", 2).notice("retry b, from the db scope");
+	L.limit("retry", 2).notice("retry c: never shown");
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
