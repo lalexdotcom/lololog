@@ -122,12 +122,12 @@ abstract class BaseLogger implements OptionsHost {
 	limit(key: string, n: number): LimitedMethods;
 	limit(keyOrN: string | number, n?: number): LimitedMethods {
 		return typeof keyOrN === "string"
-			? createLimited(this, checkLimit(n), keyOrN)
-			: createLimited(this, checkLimit(keyOrN), undefined);
+			? createLimited(this, checkLimit(n), keyOrN, undefined)
+			: createLimited(this, checkLimit(keyOrN), undefined, undefined);
 	}
 
 	once(key?: string): LimitedMethods {
-		return createLimited(this, 1, key);
+		return createLimited(this, 1, key, undefined);
 	}
 
 	options(options: LogOptions): OptionsMethods {

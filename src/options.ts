@@ -1,11 +1,15 @@
 import { LEVEL_NAMES, LEVELS, type Level } from "./levels";
-import type { LimitHost } from "./limit";
+import { checkLimit, createLimited, type LimitHost, type PlainMethods } from "./limit";
 import type { LevelMethod, LevelMethods } from "./logger";
 import type { LogOptions } from "./overrides";
 import { exec } from "./spinner/exec";
 import type { InitialSpinnerOptions, Spinner } from "./spinner/spinner";
 
-export type OptionsMethods = LevelMethods;
+export type OptionsMethods = LevelMethods & {
+	limit(n: number): PlainMethods;
+	limit(key: string, n: number): PlainMethods;
+	once(key?: string): PlainMethods;
+};
 
 export interface OptionsHost extends LimitHost {
 	spin(
@@ -24,6 +28,16 @@ export class OptionsView {
 	constructor(host: OptionsHost, overrides: LogOptions) {
 		this.host = host;
 		this.overrides = overrides;
+	}
+
+	limit(keyOrN: string | number, n?: number): PlainMethods {
+		return typeof keyOrN === "string"
+			? createLimited(this.host, checkLimit(n), keyOrN, this.overrides)
+			: createLimited(this.host, checkLimit(keyOrN), undefined, this.overrides);
+	}
+
+	once(key?: string): PlainMethods {
+		return createLimited(this.host, 1, key, this.overrides);
 	}
 }
 

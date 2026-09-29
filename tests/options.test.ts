@@ -214,3 +214,72 @@ describe("options spinner", () => {
 		expect(lines).toEqual([]);
 	});
 });
+
+describe("options with a limit", () => {
+	test("shows one dated line, whichever comes first", () => {
+		const root = pretty();
+		const first = () => {
+			root.options(DATED).once().info("a");
+		};
+		const second = () => {
+			root.once().options(DATED).info("b");
+		};
+		for (let i = 0; i < 3; i++) {
+			first();
+			second();
+		}
+		expect(lines.map(([line]) => String(line).at(-1))).toEqual(["a", "b"]);
+		expect(dated()).toEqual([true, true]);
+	});
+
+	test("keys each call site apart", () => {
+		const root = pretty();
+		const both = () => [root.options(DATED).once().info("a"), root.options(DATED).once().info("b")];
+		both();
+		both();
+		expect(lines.map(([line]) => String(line).at(-1))).toEqual(["a", "b"]);
+	});
+
+	test("shares an explicit key with plain limits, in both orders", () => {
+		const root = pretty();
+		root.options(DATED).limit("k", 2).info("a");
+		root.limit("k", 2).options(DATED).warn("b");
+		root.once("k").info("c");
+		root.options(DATED).once("k").info("d");
+		expect(lines.map(([line]) => String(line).at(-1))).toEqual(["a", "b"]);
+		expect(dated()).toEqual([true, true]);
+	});
+
+	test("does not count filtered calls", () => {
+		const root = pretty();
+		const log = () => {
+			root.options(DATED).limit(1).info("x");
+		};
+		root.level = "warn";
+		log();
+		root.level = "wth";
+		log();
+		log();
+		expect(dated()).toEqual([true]);
+	});
+
+	test("validates the limit and the options", () => {
+		const root = pretty();
+		expect(() => root.options(DATED).limit(-1)).toThrow(new TypeError("lololog: invalid limit -1"));
+		// @ts-expect-error: date is not an option
+		expect(() => root.once().options({ date: true })).toThrow(
+			new TypeError('lololog: unknown option "date"'),
+		);
+	});
+
+	test("offers the plain call only, and one options() per chain", () => {
+		const root = pretty();
+		// @ts-expect-error: a limited chain has no spinner
+		expect(root.options(DATED).once().info.spin).toBeUndefined();
+		// @ts-expect-error: a limited chain has no exec
+		expect(root.once().options(DATED).info.exec).toBeUndefined();
+		// The type alone closes the chain: the view still has options() at runtime.
+		// @ts-expect-error: one options() per chain
+		expect(root.options(DATED).once().options).toBeTypeOf("function");
+	});
+});

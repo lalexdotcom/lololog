@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `L.options({ datetime })`: level methods (with `spin` and `exec`) that
   override `datetime` for the lines they emit, without changing the logger's
   setting, on the root and scopes; any other key throws a `TypeError`.
+  Chains with `limit` and `once` in either order (`L.options(o).once()`,
+  `L.once().options(o)`), for the plain call only.
 
 ### Removed
 

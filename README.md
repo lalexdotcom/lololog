@@ -73,6 +73,19 @@ In a function that only relays a log, give it a key: under Safari and Bun
 (JavaScriptCore), a call in tail position (`const warn = (m) => L.once().warn(m)`) loses its call site, so
 each line calling `warn` would get its own counter.
 
+`options` overrides a setting for the lines it emits, without changing the
+logger's own:
+
+```ts
+L.options({ datetime: true }).info("Timestamped message");
+L.options({ datetime: true }).warn.spin("Migrating"); // spinners and exec too
+L.options({ datetime: true }).once().warn("shown once, dated");
+```
+
+`datetime` is the only setting it accepts; any other key throws a
+`TypeError`. It chains with `limit` and `once` in either order; like theirs,
+the result offers the plain call only.
+
 ## Install
 
 ```sh
