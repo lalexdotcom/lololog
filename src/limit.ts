@@ -1,4 +1,5 @@
 import { LEVEL_NAMES, LEVELS, type Level } from "./levels";
+import type { LogOptions } from "./overrides";
 
 export type LimitedMethods = { [L in Level]: (...args: unknown[]) => void };
 
@@ -6,7 +7,7 @@ export type KeyKind = "key" | "site";
 
 export interface LimitHost {
 	passes(severity: number): boolean;
-	write(level: Level, severity: number, args: unknown[]): void;
+	write(level: Level, severity: number, args: unknown[], overrides?: LogOptions): void;
 	admit(kind: KeyKind, key: string, n: number): boolean;
 }
 
