@@ -1,6 +1,13 @@
 import { isBrowser } from "./env/detect";
 import { isTTY, noColor } from "./env/tty";
 import { isLevel, LEVEL_NAMES, LEVELS, type Level } from "./levels";
+import {
+	checkLimit,
+	createLimited,
+	type KeyKind,
+	type LimitedMethods,
+	type LimitHost,
+} from "./limit";
 import type { Renderer, SpinnerView } from "./renderers/record";
 import { type Format, isFormat, selectRenderer } from "./renderers/select";
 import { consoleSink } from "./sinks/console";
@@ -28,6 +35,8 @@ export interface Logger extends LevelMethods {
 	enabled: boolean;
 	level: Level;
 	datetime: boolean | undefined;
+	limit(n: number): LimitedMethods;
+	limit(key: string, n: number): LimitedMethods;
 }
 
 export interface RootLogger extends Logger {
@@ -49,7 +58,7 @@ export interface Environment {
 const LIVE_PERIOD = 80;
 const LINE_PERIOD = 5000;
 
-abstract class BaseLogger {
+abstract class BaseLogger implements LimitHost {
 	#enabled = true;
 	#level: Level = "wth";
 	#threshold: number = LEVELS.wth;
@@ -111,6 +120,18 @@ abstract class BaseLogger {
 		return this.#enabled && severity >= this.#threshold;
 	}
 
+	limit(n: number): LimitedMethods;
+	limit(key: string, n: number): LimitedMethods;
+	limit(keyOrN: string | number, n?: number): LimitedMethods {
+		return typeof keyOrN === "string"
+			? createLimited(this, checkLimit(n), keyOrN)
+			: createLimited(this, checkLimit(keyOrN), undefined);
+	}
+
+	abstract passes(severity: number): boolean;
+
+	abstract admit(kind: KeyKind, key: string, n: number): boolean;
+
 	abstract write(level: Level, severity: number, args: unknown[]): void;
 
 	abstract spin(
@@ -131,9 +152,17 @@ class ScopedLogger extends BaseLogger implements Logger {
 		this.#name = name;
 	}
 
+	passes(severity: number): boolean {
+		return this.#root.accepts(severity) && this.accepts(severity);
+	}
+
+	admit(kind: KeyKind, key: string, n: number): boolean {
+		return this.#root.admit(kind, key, n);
+	}
+
 	write(level: Level, severity: number, args: unknown[]): void {
 		const root = this.#root;
-		if (!root.accepts(severity) || !this.accepts(severity)) return;
+		if (!this.passes(severity)) return;
 		root.emit(level, this.#name, this.datetime ?? root.datetime ?? false, args);
 	}
 
@@ -144,7 +173,7 @@ class ScopedLogger extends BaseLogger implements Logger {
 		options: InitialSpinnerOptions | undefined,
 	): Spinner {
 		const root = this.#root;
-		if (!root.accepts(severity) || !this.accepts(severity)) return NOOP_SPINNER;
+		if (!this.passes(severity)) return NOOP_SPINNER;
 		const origin = {
 			level,
 			scope: this.#name,
@@ -166,6 +195,8 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 	#nextSpinnerId = 1;
 	#interval: number | undefined;
 	#timer: ReturnType<typeof setInterval> | undefined;
+	// Apart, so an explicit key that reads like a frame line never shares a site's counter.
+	readonly #counts: Record<KeyKind, Map<string, number>> = { key: new Map(), site: new Map() };
 
 	constructor(environment: Environment) {
 		super();
@@ -231,7 +262,7 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 		message: string,
 		options: InitialSpinnerOptions | undefined,
 	): Spinner {
-		if (!this.accepts(severity)) return NOOP_SPINNER;
+		if (!this.passes(severity)) return NOOP_SPINNER;
 		const origin = { level, scope: undefined, datetime: () => this.datetime ?? false };
 		return this.startSpinner(origin, message, options);
 	}
@@ -305,8 +336,20 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 		(this.#timer as { unref?: () => void }).unref?.();
 	}
 
+	passes(severity: number): boolean {
+		return this.accepts(severity);
+	}
+
+	admit(kind: KeyKind, key: string, n: number): boolean {
+		const counts = this.#counts[kind];
+		const count = counts.get(key) ?? 0;
+		if (count >= n) return false;
+		counts.set(key, count + 1);
+		return true;
+	}
+
 	write(level: Level, severity: number, args: unknown[]): void {
-		if (this.accepts(severity)) this.emit(level, undefined, this.datetime ?? false, args);
+		if (this.passes(severity)) this.emit(level, undefined, this.datetime ?? false, args);
 	}
 
 	emit(level: Level, scope: string | undefined, datetime: boolean, args: unknown[]): void {

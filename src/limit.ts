@@ -1,3 +1,15 @@
+import { LEVEL_NAMES, LEVELS, type Level } from "./levels";
+
+export type LimitedMethods = { [L in Level]: (...args: unknown[]) => void };
+
+export type KeyKind = "key" | "site";
+
+export interface LimitHost {
+	passes(severity: number): boolean;
+	write(level: Level, severity: number, args: unknown[]): void;
+	admit(kind: KeyKind, key: string, n: number): boolean;
+}
+
 type WithLimit = ErrorConstructor & { stackTraceLimit?: number };
 
 export function callerFrame(stack: string | undefined): string | undefined {
@@ -22,4 +34,46 @@ export function callSite(): string | undefined {
 	const stack = new Error().stack;
 	E.stackTraceLimit = saved;
 	return callerFrame(stack);
+}
+
+export function checkLimit(n: unknown): number {
+	if (typeof n === "number" && Number.isInteger(n) && n >= 0) return n;
+	throw new TypeError(`lololog: invalid limit ${String(n)}`);
+}
+
+class LimitedView {
+	readonly host: LimitHost;
+	readonly n: number;
+	readonly key: string | undefined;
+	site: string | undefined = undefined;
+
+	constructor(host: LimitHost, n: number, key: string | undefined) {
+		this.host = host;
+		this.n = n;
+		this.key = key;
+	}
+}
+
+// On the prototype rather than own closures: `L.limit(10)` runs once per loop turn, and eleven
+// closures per turn would cost more than the line they guard.
+for (const level of LEVEL_NAMES) {
+	const severity = LEVELS[level];
+	(LimitedView.prototype as unknown as LimitedMethods)[level] = function (
+		this: LimitedView,
+		...args: unknown[]
+	): void {
+		const host = this.host;
+		if (!host.passes(severity)) return;
+		if (this.key !== undefined) {
+			if (!host.admit("key", this.key, this.n)) return;
+		} else {
+			this.site ??= callSite();
+			if (this.site !== undefined && !host.admit("site", this.site, this.n)) return;
+		}
+		host.write(level, severity, args);
+	};
+}
+
+export function createLimited(host: LimitHost, n: number, key: string | undefined): LimitedMethods {
+	return new LimitedView(host, n, key) as unknown as LimitedMethods;
 }

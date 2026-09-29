@@ -147,9 +147,10 @@ Every test file runs in both rstest projects unless marked Node only.
     site;
   - filtered calls (level, `enabled`, root disabled under a scope) do not
     count: raising the level afterwards still shows `n` lines;
-  - a hoisted keyless view captures once (counted through an accessor the
-    test defines on `Error.stackTraceLimit`), and shares its cap
-    between two sites;
+  - a hoisted keyless view shares its cap between its sites; filtered calls
+    and explicit keys capture no stack (counted through an `Error` subclass
+    set on `globalThis`: V8 reads `stackTraceLimit` as a data property only,
+    so an accessor there would turn stacks off);
   - `stackTraceLimit` is restored to its prior value, including a custom one;
   - `n` validation (`-1`, `1.5`, `NaN`, `"3"` → `TypeError`);
   - no readable stack (`stack` stubbed to `undefined`) → every call emits.

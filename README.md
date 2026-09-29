@@ -55,6 +55,18 @@ The spinner ends with `success()` when the task resolves and `fail()` when it
 rejects; `exec` returns the task's value or rethrows its error. `onProgress` is
 the spinner's `update`.
 
+`limit` shows the first lines of a call site and drops the rest:
+
+```ts
+for (const row of rows) L.limit(10).debug("row %o", row); // first 10 rows only
+L.limit("retry", 3).warn("retrying"); // every call keyed "retry" shares 3 lines
+```
+
+Without a key, the call site is read from a short stack trace, captured each
+time the level lets the call through. A key avoids the capture; a view hoisted
+out of the loop (`const rows = L.limit(10)`) captures once, and all its calls
+share its limit.
+
 ## Install
 
 ```sh
