@@ -348,6 +348,10 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 	admit(kind: KeyKind, key: string, n: number): boolean {
 		const counts = this.#counts[kind];
 		const count = counts.get(key) ?? 0;
+		// TEMP (feat/limit): remove before delivering the branch.
+		if (count === 0 && (globalThis as { LOLOLOG_DEBUG_KEYS?: unknown }).LOLOLOG_DEBUG_KEYS) {
+			console.log("lololog key", kind, key);
+		}
 		if (count >= n) return false;
 		counts.set(key, count + 1);
 		return true;

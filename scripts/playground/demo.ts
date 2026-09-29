@@ -1,5 +1,12 @@
 import { LEVELS, type Level, type RootLogger } from "../../src/index";
 
+// TEMP (feat/limit): remove before delivering the branch. The web playground has no process: set
+// LOLOLOG_DEBUG_KEYS = true in the devtools console there.
+if (typeof process !== "undefined") {
+	(globalThis as { LOLOLOG_DEBUG_KEYS?: unknown }).LOLOLOG_DEBUG_KEYS ??=
+		process.env.LOLOLOG_DEBUG_KEYS;
+}
+
 export function demo(L: RootLogger): void {
 	for (const level of Object.keys(LEVELS) as Level[]) L[level](`${level} message`);
 
