@@ -243,3 +243,60 @@ describe("limit", () => {
 		expect(view.info.spin).toBeUndefined();
 	});
 });
+
+describe("once", () => {
+	test("shows a call site once", () => {
+		const root = createRootLogger(PIPE);
+		for (let i = 0; i < 3; i++) root.once.warn("legacy");
+		expect(messages()).toEqual(["legacy"]);
+	});
+
+	test("counts each call site apart, even on one line", () => {
+		const root = createRootLogger(PIPE);
+		const both = () => [root.once.info("a"), root.once.info("b")];
+		both();
+		both();
+		expect(messages()).toEqual(["a", "b"]);
+	});
+
+	test("shares a key across levels and scopes", () => {
+		const root = createRootLogger(PIPE);
+		root.once("k").info("a");
+		root.scope("db").once("k").warn("b");
+		expect(messages()).toEqual(["a"]);
+	});
+
+	test("works detached", () => {
+		const root = createRootLogger(PIPE);
+		const { warn } = root.once;
+		for (let i = 0; i < 2; i++) warn("x");
+		expect(messages()).toEqual(["x"]);
+	});
+
+	test("belongs to its logger", () => {
+		const root = createRootLogger(PIPE);
+		const db = root.scope("db");
+		expect(db.once).not.toBe(root.once);
+		db.once.info("x");
+		expect(entries()[0]).toMatchObject({ scope: "db", msg: "x" });
+	});
+
+	test("does not count filtered calls, nor capture a stack for them", () => {
+		const root = createRootLogger(PIPE);
+		const log = () => root.once.info("x");
+		root.level = "warn";
+		expect(captures(log)).toBe(0);
+		root.level = "wth";
+		log();
+		log();
+		expect(messages()).toEqual(["x"]);
+	});
+
+	test("offers the plain call only", () => {
+		const root = createRootLogger(PIPE);
+		// @ts-expect-error: a limited method has no spinner
+		expect(root.once.info.spin).toBeUndefined();
+		// @ts-expect-error: a limited method has no exec
+		expect(root.once("k").info.exec).toBeUndefined();
+	});
+});

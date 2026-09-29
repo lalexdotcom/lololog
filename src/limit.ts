@@ -77,3 +77,19 @@ for (const level of LEVEL_NAMES) {
 export function createLimited(host: LimitHost, n: number, key: string | undefined): LimitedMethods {
 	return new LimitedView(host, n, key) as unknown as LimitedMethods;
 }
+
+export type Once = ((key: string) => LimitedMethods) & LimitedMethods;
+
+export function createOnce(host: LimitHost): Once {
+	const once = ((key: string) => createLimited(host, 1, key)) as Once;
+	for (const level of LEVEL_NAMES) {
+		const severity = LEVELS[level];
+		once[level] = (...args: unknown[]) => {
+			if (!host.passes(severity)) return;
+			const site = callSite();
+			if (site !== undefined && !host.admit("site", site, 1)) return;
+			host.write(level, severity, args);
+		};
+	}
+	return once;
+}

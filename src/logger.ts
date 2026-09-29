@@ -4,9 +4,11 @@ import { isLevel, LEVEL_NAMES, LEVELS, type Level } from "./levels";
 import {
 	checkLimit,
 	createLimited,
+	createOnce,
 	type KeyKind,
 	type LimitedMethods,
 	type LimitHost,
+	type Once,
 } from "./limit";
 import type { Renderer, SpinnerView } from "./renderers/record";
 import { type Format, isFormat, selectRenderer } from "./renderers/select";
@@ -37,6 +39,7 @@ export interface Logger extends LevelMethods {
 	datetime: boolean | undefined;
 	limit(n: number): LimitedMethods;
 	limit(key: string, n: number): LimitedMethods;
+	readonly once: Once;
 }
 
 export interface RootLogger extends Logger {
@@ -75,6 +78,7 @@ abstract class BaseLogger implements LimitHost {
 	declare crit: LevelMethod;
 	declare alert: LevelMethod;
 	declare emerg: LevelMethod;
+	declare readonly once: Once;
 
 	constructor() {
 		// Own closures rather than one prototype function per level: a detached
@@ -88,6 +92,7 @@ abstract class BaseLogger implements LimitHost {
 			method.exec = (message, task, options) => exec(method.spin(message, options), task);
 			this[level] = method;
 		}
+		this.once = createOnce(this);
 	}
 
 	get enabled(): boolean {

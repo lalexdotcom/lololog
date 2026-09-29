@@ -35,7 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   receives the spinner's `update` as `onProgress`.
 - `L.limit(n)` and `L.limit(key, n)`: level methods that show only the first
   `n` lines of their call site, or of every call sharing `key` across levels
-  and scopes; calls filtered by `level` or `enabled` do not count.
+  and scopes; calls filtered by `level` or `enabled` do not count. `L.once`
+  and `L.once(key)` do the same with `n = 1`.
 
 ### Removed
 
