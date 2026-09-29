@@ -14,6 +14,7 @@ interface V8CallSite {
 	getFileName(): string | null | undefined;
 	getLineNumber(): number | null;
 	getColumnNumber(): number | null;
+	isNative?(): boolean;
 }
 
 type V8Error = ErrorConstructor & {
@@ -27,9 +28,11 @@ export function callerFrame(stack: string | undefined): string | undefined {
 	if (stack === undefined) return undefined;
 	const lines = stack.split("\n");
 	// V8 alone opens the stack with the error's own line: "Error" or "Error: message".
-	// It's not a frame (doesn't start with whitespace + "at", and doesn't contain "@").
 	if (/^Error/.test(lines[0])) lines.shift();
-	return lines[2] || undefined;
+	const frame = lines[2] || undefined;
+	// A tail call (JSC, strict mode) drops the caller's frame, leaving the native trampoline: no
+	// readable site, so the call emits uncounted rather than sharing a counter with unrelated lines.
+	return frame?.includes("[native code]") ? undefined : frame;
 }
 
 // Must be called by the level method itself: the caller is read as the third frame (callSite,
@@ -47,23 +50,32 @@ export function callSite(): string | undefined {
 	// V8 hands the frames over as CallSite objects instead of formatting them, and skips source
 	// maps: 1.6 µs against 2.5 µs for the text stack, 4.7 µs with source maps (Node 24).
 	E.prepareStackTrace = passSites;
-	const stack: unknown = new Error().stack;
-	if (hadHook) E.prepareStackTrace = savedHook;
-	// Cast to a plain optional-property type for the delete: Node's ErrorConstructor declares
-	// prepareStackTrace as required, and TS refuses `delete` through that intersection (TS2790).
-	else delete (E as { prepareStackTrace?: unknown }).prepareStackTrace;
-	E.stackTraceLimit = saved;
+	let stack: unknown;
+	try {
+		// The capture itself can throw (a hostile `stack` getter, a stack overflow unwinding through
+		// here): both globals must come back regardless, or every later capture in the process breaks.
+		stack = new Error().stack;
+	} finally {
+		if (hadHook) E.prepareStackTrace = savedHook;
+		// Cast to a plain optional-property type for the delete: Node's ErrorConstructor declares
+		// prepareStackTrace as required, and TS refuses `delete` through that intersection (TS2790).
+		else delete (E as { prepareStackTrace?: unknown }).prepareStackTrace;
+		E.stackTraceLimit = saved;
+	}
 	return siteKey(stack);
 }
 
 export function siteKey(stack: unknown): string | undefined {
 	// An array means the engine called the prepareStackTrace hook (V8); anything else is its
 	// usual text stack, or none.
-	if (!Array.isArray(stack)) return callerFrame(stack as string | undefined);
+	if (!Array.isArray(stack)) return typeof stack === "string" ? callerFrame(stack) : undefined;
 	const site = (stack as V8CallSite[])[2];
-	return site === undefined
-		? undefined
-		: `${site.getFileName()}:${site.getLineNumber()}:${site.getColumnNumber()}`;
+	// A native frame (JSC tail call) has no readable site: emit uncounted rather than share a key.
+	if (site === undefined || site.isNative?.()) return undefined;
+	const file = site.getFileName();
+	// eval'd code (e.g. webpack's default dev `devtool`) has no file name; String(site) keeps the
+	// origin ("inner (webpack://app/./src/a.js:1:27)") instead of collapsing every eval to one key.
+	return file == null ? String(site) : `${file}:${site.getLineNumber()}:${site.getColumnNumber()}`;
 }
 
 export function checkLimit(n: unknown): number {

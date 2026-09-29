@@ -88,6 +88,15 @@ describe("callerFrame", () => {
 		expect(callerFrame("callSite@x.js:1:1\ndebug@x.js:2:1\n")).toBeUndefined();
 		expect(callerFrame(undefined)).toBeUndefined();
 	});
+
+	test("returns undefined for a JavaScriptCore tail call (native trampoline, no readable caller)", () => {
+		const stack = [
+			"callSite@http://localhost/limit.js:5:17",
+			"debug@http://localhost/limit.js:30:22",
+			"forEach@[native code]",
+		].join("\n");
+		expect(callerFrame(stack)).toBeUndefined();
+	});
 });
 
 describe("callSite", () => {
@@ -152,6 +161,55 @@ describe("callSite", () => {
 			else delete E.prepareStackTrace;
 		}
 	});
+
+	test("restores both globals when the capture itself throws", () => {
+		// A stack overflow deep in a recursive caller is the reviewer's real repro, but its depth
+		// varies by engine and stack layout; a throwing `stack` getter reproduces the same failure
+		// (an exception between setting the globals and restoring them) deterministically.
+		const Original = globalThis.Error;
+		const originalLimit = (Original as WithLimit).stackTraceLimit;
+		const originalHadHook = Object.hasOwn(Original, "prepareStackTrace");
+		const originalHook = (Original as unknown as { prepareStackTrace?: unknown }).prepareStackTrace;
+
+		class Throws extends Original {
+			constructor(...args: ConstructorParameters<ErrorConstructor>) {
+				super(...args);
+				// `new Original`, not `new Error`: Error is Throws while this getter runs, and
+				// `new Error` here would recurse into this same constructor forever.
+				Object.defineProperty(this, "stack", {
+					get(): never {
+						throw new Original("boom");
+					},
+				});
+			}
+		}
+		globalThis.Error = Throws as unknown as ErrorConstructor;
+
+		const limitBefore = (Error as WithLimit).stackTraceLimit;
+		const hadHookBefore = Object.hasOwn(Error, "prepareStackTrace");
+		const hookBefore = (Error as unknown as { prepareStackTrace?: unknown }).prepareStackTrace;
+
+		try {
+			expect(() => probe()).toThrow("boom");
+			expect((Error as WithLimit).stackTraceLimit).toBe(limitBefore);
+			expect(Object.hasOwn(Error, "prepareStackTrace")).toBe(hadHookBefore);
+			if (hadHookBefore) {
+				expect((Error as unknown as { prepareStackTrace?: unknown }).prepareStackTrace).toBe(
+					hookBefore,
+				);
+			}
+		} finally {
+			globalThis.Error = Original;
+		}
+
+		expect((Original as WithLimit).stackTraceLimit).toBe(originalLimit);
+		expect(Object.hasOwn(Original, "prepareStackTrace")).toBe(originalHadHook);
+		if (originalHadHook) {
+			expect((Original as unknown as { prepareStackTrace?: unknown }).prepareStackTrace).toBe(
+				originalHook,
+			);
+		}
+	});
 });
 
 describe("siteKey", () => {
@@ -176,6 +234,30 @@ describe("siteKey", () => {
 		].join("\n");
 		expect(siteKey(stack)).toBe("    at main (file:///app/main.js:10:14)");
 		expect(siteKey(undefined)).toBeUndefined();
+	});
+
+	test("returns undefined for a non-array, non-string stack", () => {
+		expect(siteKey(42)).toBeUndefined();
+	});
+
+	test("keys an eval'd site (no file name) by its string form", () => {
+		const evalSite = {
+			getFileName: () => undefined,
+			getLineNumber: () => 1,
+			getColumnNumber: () => 27,
+			toString: () => "inner (webpack://app/./src/a.js:1:27)",
+		};
+		const sites = [site("limit.js", 5, 17), site("limit.js", 30, 22), evalSite];
+		expect(siteKey(sites)).toBe("inner (webpack://app/./src/a.js:1:27)");
+	});
+
+	test("returns undefined for a native call site (JSC tail call, no readable caller)", () => {
+		const sites = [
+			site("limit.js", 5, 17),
+			site("limit.js", 30, 22),
+			{ ...site("native", 0, 0), isNative: () => true },
+		];
+		expect(siteKey(sites)).toBeUndefined();
 	});
 });
 

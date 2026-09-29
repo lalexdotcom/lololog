@@ -100,11 +100,20 @@ const saved = Error.stackTraceLimit;
 Error.stackTraceLimit = 3;
 const savedHook = Error.prepareStackTrace;
 Error.prepareStackTrace = (_, sites) => sites;
-const stack = new Error().stack;
-Error.prepareStackTrace = savedHook; // or delete, if there was none
-Error.stackTraceLimit = saved;
+let stack;
+try {
+	stack = new Error().stack;
+} finally {
+	Error.prepareStackTrace = savedHook; // or delete, if there was none
+	Error.stackTraceLimit = saved;
+}
 return siteKey(stack);
 ```
+
+The capture runs in a `try`: a hostile `stack` getter, or a stack overflow
+unwinding through here, must not leave `stackTraceLimit` or
+`prepareStackTrace` stuck for the rest of the process, so both are restored in
+a `finally`.
 
 One capture serves both paths: an array means the engine called the
 `prepareStackTrace` hook (V8), so `siteKey` reads the third `CallSite` as
@@ -115,6 +124,13 @@ message), then returns the third line, untouched. The line carries file, line
 and column, so two calls on one line get two keys; parsing it would buy
 nothing. SpiderMonkey ignores `stackTraceLimit`: the stack is longer, the
 index still holds.
+
+A native frame (JavaScriptCore's proper tail calls, in strict code, drop the
+caller's own frame and leave the trampoline, e.g. `forEach@[native code]`) is
+no readable site, so the call emits uncounted rather than share a counter with
+whatever else lands on that frame; a tail call whose third frame is a user
+function (not the trampoline) still keys on that function's caller as usual, a
+known limit of reading the site positionally.
 
 Adopted after the benchmark (Node v24.21.0, median ns per capture): text
 stack 2 481, or 4 672 with source maps; CallSite objects 1 602, or 1 529 with
