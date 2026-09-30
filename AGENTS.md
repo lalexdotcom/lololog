@@ -34,6 +34,23 @@ in lifecycle scripts`. Types: `feat`, `fix`, `docs`, `style`, `refactor`,
 after the type/scope and a `BREAKING CHANGE:` footer. The body explains why, not
 what.
 
+Every piece of work is delivered on its own branch off `main`, never committed
+to `main` directly. A small, self-contained request (a config tweak, a rule, a
+one-file chore) may instead be committed inline on the branch in progress.
+
+Closing a piece of work means, in order: format, lint, typecheck and tests all
+green; Serena memories updated; then `git merge --no-ff` into `main` and the
+branch deleted.
+
+Never push — branch, `main` or tag — unless explicitly asked.
+
+## Changelog
+
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Every user-visible change adds an entry under `## [Unreleased]`, on the branch
+that makes the change. Entries and releases go through the
+`changelog-maintenance` skill.
+
 ## Comments
 
 A comment says why, never what: the code already says what. Write one only
