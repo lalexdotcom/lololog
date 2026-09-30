@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@rstest/core";
-import { serialize } from "../src/format/serialize";
+import { serialize, stringify } from "../src/format/serialize";
 
 describe("serialize", () => {
 	test("writes plain values as JSON", () => {
@@ -46,5 +46,19 @@ describe("serialize", () => {
 	test("returns undefined as text where JSON has no value", () => {
 		expect(serialize(undefined)).toBe("undefined");
 		expect(serialize(() => 1)).toBe("undefined");
+	});
+});
+
+describe("stringify", () => {
+	test("writes what serialize writes for a value JSON can carry", () => {
+		const node: Record<string, unknown> = { a: 1n };
+		node.self = node;
+		expect(stringify(node)).toBe('{"a":"1","self":"[Circular]"}');
+	});
+
+	test("returns undefined where JSON has no value", () => {
+		expect(stringify(undefined)).toBeUndefined();
+		expect(stringify(() => 1)).toBeUndefined();
+		expect(stringify(Symbol("s"))).toBeUndefined();
 	});
 });
