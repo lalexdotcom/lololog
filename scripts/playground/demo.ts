@@ -13,6 +13,9 @@ export function demo(L: RootLogger): void {
 	L.success("root with datetime");
 	db.notice("scope with datetime");
 	L.datetime = undefined;
+	L.options({ datetime: true }).info("dated once, L.datetime untouched");
+	db.options({ datetime: true }).notice("scope, dated once");
+	for (let i = 1; i <= 3; i++) L.options({ datetime: true }).once().warn(`dated once ${i} of 3`);
 	for (let i = 1; i <= 5; i++) L.limit(3).debug(`limited ${i} of 5, limit 3`);
 	for (let i = 1; i <= 5; i++) L.once().warn(`once ${i} of 5`);
 	// A tail call: JavaScriptCore drops the arrow's frame, leaving forEach's native frame where the
@@ -33,6 +36,7 @@ export async function spinnerDemo(L: RootLogger, external?: () => void): Promise
 	const files = L.notice.spin("Processing files", { total: 120 });
 	const custom = L.verb.spin("Custom glyph", { glyph: "◐◓◑◒", color: "mediumpurple" });
 	const cache = L.warn.spin("Warming the cache");
+	const dated = L.options({ datetime: true }).info.spin("Dated spinner");
 	const sync = L.info
 		.exec("Syncing", async (onProgress) => {
 			for (let done = 1; done <= 10; done++) {
@@ -61,6 +65,7 @@ export async function spinnerDemo(L: RootLogger, external?: () => void): Promise
 		if (step === 12) cache.fail("Cache unreachable");
 		if (step === 14) external?.();
 		if (step === 18) custom.close("Custom skipped", { status: "skipped" });
+		if (step === 20) dated.success("Dated spinner done");
 	}
 	download.success();
 	files.fail("Processing failed", { done: 97, total: 120 });
