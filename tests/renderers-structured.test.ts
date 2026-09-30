@@ -58,6 +58,24 @@ describe("renderJson", () => {
 		const [line] = renderJson(record({ args: ["x", node] }));
 		expect(JSON.parse(String(line)).data).toEqual({ self: "[Circular]" });
 	});
+
+	test("omits data that JSON cannot carry", () => {
+		const bare = '{"time":"2026-09-25T10:00:00.000Z","level":"warn","severity":13,"msg":"x"}';
+		expect(renderJson(record({ scope: undefined, args: ["x", undefined] }))).toEqual([bare]);
+		expect(renderJson(record({ scope: undefined, args: ["x", () => {}] }))).toEqual([bare]);
+	});
+
+	test("escapes the scope and the message", () => {
+		expect(renderJson(record({ scope: 'a"b', args: ['say "hi"\n\\'] }))).toEqual([
+			'{"time":"2026-09-25T10:00:00.000Z","level":"warn","severity":13,"scope":"a\\"b","msg":"say \\"hi\\"\\n\\\\"}',
+		]);
+	});
+
+	test("writes each record's own time, in any order", () => {
+		const times = [TIME + 7, TIME + 42, TIME + 999, TIME + 1000, TIME + 61_005, TIME + 7, TIME - 1];
+		const written = times.map((time) => JSON.parse(String(renderJson(record({ time }))[0])).time);
+		expect(written).toEqual(times.map((time) => new Date(time).toISOString()));
+	});
 });
 
 describe("quote", () => {

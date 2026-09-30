@@ -24,6 +24,15 @@ function entries(): Array<Record<string, unknown>> {
 	return lines.map(([line]) => JSON.parse(String(line)));
 }
 
+function outputStream() {
+	const chunks: unknown[] = [];
+	const write = (chunk: unknown) => {
+		chunks.push(chunk);
+		return true;
+	};
+	return { chunks, write };
+}
+
 describe("root logger", () => {
 	test("owns one method per level, bound to it", () => {
 		const root = createRootLogger(PIPE);
@@ -136,7 +145,7 @@ describe("output selection", () => {
 		expect(fake.out).toEqual([`${BADGES.info} hi\n`]);
 	});
 
-	test("keeps console.log for json and logfmt on a TTY, and in the browser", () => {
+	test("does not drive the TTY for json and logfmt, or in the browser", () => {
 		const fake = fakeTerminal();
 		const root = createRootLogger({ ...TERMINAL, terminal: fake.terminal });
 		root.format = "json";
@@ -148,6 +157,33 @@ describe("output selection", () => {
 		);
 		expect(fake.out).toEqual([]);
 		expect(lines).toHaveLength(3);
+	});
+
+	test("writes json and logfmt straight to the output stream when there is one", () => {
+		const output = outputStream();
+		const root = createRootLogger({ ...PIPE, output });
+		root.info("a");
+		root.format = "logfmt";
+		root.info("b");
+		const onTerminal = createRootLogger({ ...TERMINAL, output });
+		onTerminal.format = "json";
+		onTerminal.info("c");
+		expect(lines).toEqual([]);
+		expect(output.chunks).toEqual([
+			expect.stringMatching(/^\{"time":.*"msg":"a"\}\n$/),
+			expect.stringMatching(/^time=\S+ level=info severity=9 msg=b\n$/),
+			expect.stringMatching(/^\{"time":.*"msg":"c"\}\n$/),
+		]);
+	});
+
+	test("keeps console.log for pretty lines and in the browser, whatever the output stream", () => {
+		const output = outputStream();
+		const root = createRootLogger({ ...PIPE, output });
+		root.format = "pretty";
+		root.info("a");
+		createRootLogger({ isBrowser: true, tty: false, noColor: false, output }).info("b");
+		expect(output.chunks).toEqual([]);
+		expect(lines).toEqual([["[INFO] a"], ["%cINFO%c b", expect.any(String), expect.any(String)]]);
 	});
 });
 

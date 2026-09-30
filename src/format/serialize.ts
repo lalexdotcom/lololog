@@ -28,8 +28,12 @@ function normalize(value: unknown, ancestors: object[]): unknown {
 	}
 }
 
+export function stringify(value: unknown): string | undefined {
+	return JSON.stringify(normalize(value, []));
+}
+
 // "undefined" where JSON.stringify returns nothing (undefined, a function, a symbol), as
 // util.format's %j does, so callers always get text.
 export function serialize(value: unknown): string {
-	return JSON.stringify(normalize(value, [])) ?? "undefined";
+	return stringify(value) ?? "undefined";
 }

@@ -15,9 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mapped to OpenTelemetry (`LEVELS`), options `enabled`, `level`, `datetime`,
   `color` and `format` (`pretty`, `json`, `logfmt`).
 - `L.scope(name)`: named loggers that the root can silence or restrict.
-- Output for browser devtools (styled badges), terminals (coloured badges,
-  written with `process.stdout.write`, not `console.log`), and pipes (`json`
-  by default, `logfmt` or plain `pretty` on request).
+- Output for browser devtools (styled badges), terminals (coloured badges),
+  and pipes (`json` by default, `logfmt` or plain `pretty` on request). On
+  Node.js, terminal lines and `json`/`logfmt` lines are written with
+  `process.stdout.write`, not `console.log`.
 - Spinners: `L.<level>.spin(message, options?)` returns a spinner with
   `update`, `close`, `success` and `fail`, unbounded or with a progress
   (`{ progress }` or `{ done, total }`), a custom `glyph` and `color`, and a
