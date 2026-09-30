@@ -21,7 +21,7 @@ export interface OptionsHost extends LimitHost {
 	): Spinner;
 }
 
-export class OptionsView {
+class OptionsView {
 	readonly host: OptionsHost;
 	readonly overrides: LogOptions;
 
