@@ -5,8 +5,8 @@ picked up. Not commitments.
 
 ## Worker-thread output when stdout is a regular file
 
-Parked on 2026-09-30, after the json/logfmt overhead work (branch
-`perf/structured-output`). Would be an architectural change (first runtime
+Parked on 2026-09-30, after the json/logfmt overhead work (the
+`perf/structured-output` merge). Would be an architectural change (first runtime
 dependency, a worker file next to the single bundle): spec first.
 
 - What: for json/logfmt on Node, hand the rendered line to a worker through a

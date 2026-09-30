@@ -1,9 +1,9 @@
 # Overhead measurements (2026-09-30)
 
-Taken while studying pino's techniques and shipping branch
-`perf/structured-output` (json line by concatenation, cached ISO prefix,
-`stdout.write` sink for json/logfmt). Node 24.21, Linux arm64 VM (OrbStack),
-16 cores. "main" is the code before the branch. Numbers are best-of-N on one
+Taken while studying pino's techniques for the `perf/structured-output` merge
+(json line by concatenation, cached ISO prefix, `stdout.write` sink for
+json/logfmt). Node 24.21, Linux arm64 VM (OrbStack), 16 cores. In the tables
+"main" is the code before that merge and "branch" the code it brought. Numbers are best-of-N on one
 machine: read the ratios, not the absolutes. Decisions drawn from them:
 `mem:project/logger` and `mem:project/backlog`.
 

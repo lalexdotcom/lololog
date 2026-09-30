@@ -17,13 +17,19 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
   `selectRenderer` (pure): browser (colour off → pretty) > json (format json,
   or unset and not a TTY) > logfmt > tty (TTY and colour) > pretty. TTY =
   `stdout.isTTY`, NO_COLOR read once at load.
-- Output goes through a `Sink` (`src/sinks/`), picked with the renderer:
+- Output goes through a `Sink` (`src/sinks/`), picked after the renderer:
+  `consoleSink` in the browser; `streamSink` for json and logfmt wherever
+  `process.stdout` exists (Node, Bun; `${line}\n` through `stdout.write`);
   `LiveSink` on a Node TTY when the renderer is tty or pretty
   (`util.formatWithOptions` + `stdout.write`, measured faster than
-  `console.log` on a pty), `consoleSink` (`console.log` only, never
-  warn/error: devtools stack traces) everywhere else. The terminal is
-  injected (`Environment.terminal`, `nodeTerminal()`), so tests use
-  `tests/fake-terminal.ts`.
+  `console.log` on a pty); `consoleSink` (`console.log` only, never
+  warn/error: devtools stack traces) everywhere else. The terminal and the
+  output stream are injected (`Environment.terminal`, `nodeTerminal()`;
+  `Environment.output`, `nodeOutput()`), so tests use
+  `tests/fake-terminal.ts` or a plain `{ write }`, and an environment without
+  `output` stays on `console.log`. `streamSink` has no error guard: a closed
+  pipe (EPIPE) ends the process through `console.log` as well. A replaced
+  `console.log` does not see json/logfmt lines on Node.
 - Spinners (spec `docs/superpowers/specs/2026-09-28-spinner-design.md`):
   `L.<level>.spin(msg, opts?)` → `update`/`close`/`success`/`fail`; filter
   fixed at spin (filtered → shared frozen no-op); one timer per root
@@ -60,7 +66,7 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
   No readable stack → emits uncounted. Known limit: under JSC (Safari, Bun) a
   helper that tail-calls a level method loses its frame (README: give it a
   key). Measured Node 24: keyless past cap ~2.2 µs, keyed 17 ns, filtered
-  ~6 ns, emitted json line ~0.8 µs.
+  ~6 ns, against ~0.15 µs to render a json line.
 - One-shot options (spec `docs/superpowers/specs/2026-09-29-options-design.md`,
   shipped in the feat/options merge): `L.options({ datetime })` on root and
   scopes → full level methods (with spin/exec) plus `limit`/`once`.
@@ -97,14 +103,23 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
 - json/logfmt: own specifier parser → `msg` + `data` (absent / value /
   array); fields time (ISO, always), level, severity, scope, msg, data;
   `serialize` never throws (Error → name/message/stack/cause, cycles,
-  bigint, throwing getters).
+  bigint, throwing getters). `renderJson` concatenates the line by hand, in
+  the field order of `toEntry` (which logfmt still uses): a fragment per
+  level built once, one per scope name cached, and only `data` goes through
+  `normalize` (`stringify`, undefined where JSON has no value, so the key is
+  dropped). `isoTime` (`src/format/iso.ts`) keeps the ISO prefix down to the
+  second between calls. Tried and slower or wrong: a single-pass serializer
+  in JS, `JSON.stringify` first with the safe path on throw (an Error comes
+  out as `{}`), pino's string escape. Numbers: `mem:project/measurements`.
 - Palette (`src/style/ansi.ts`): every name is a CSS colour name so one table
   serves ANSI and CSS; the ANSI entry must match the CSS shade, and white
   badge text needs ≥ 4.5:1 or VS Code's terminal (minimumContrastRatio)
   repaints it dark — hence warn black on orange, info white on dimgray.
 - Singleton: `globalThis[Symbol.for("lololog")]`, first copy loaded wins.
-- Rejected: worker-thread output (postMessage costs as much as rendering
-  json, DataCloneError on functions, lost lines on exit).
+- Rejected: rendering in a worker thread over postMessage (sending the
+  record costs 5–7× rendering it in place, DataCloneError on functions, lost
+  lines on exit). Parked, not rejected: a worker fed rendered lines through
+  shared memory when stdout is a regular file, `mem:project/backlog`.
 
 Known open points (from the final review, not fixed): `%`
 in a scope name is read as a specifier; Error loses own props like `code`

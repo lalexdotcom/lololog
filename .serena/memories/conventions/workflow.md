@@ -17,6 +17,11 @@
   overrides `superpowers:finishing-a-development-branch`, whose plain
   `git merge` fast-forwards when it can.
 - After the merge: update these Serena memories to match what shipped.
+- "Clôturer" (the user closing a piece of work) means, in this order and
+  without a further go: commit what is pending on the feat-branch, merge it
+  into `main` with `git merge --no-ff`, update these memories on `main` and
+  commit them there. It replaces the options menu of
+  `superpowers:finishing-a-development-branch`.
 - During a dedicated documentation pass, do not commit each edit: wording and
   verbosity usually take several back-and-forths. Commit once the user
   validates the pass.
