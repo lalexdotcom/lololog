@@ -10,7 +10,8 @@
 			"**",
 			"!**/dist",
 			"!.devcontainer/devcontainer-lock.json",
-			"!.claude/settings.json"
+			"!.claude/settings.json",
+			"!skills-lock.json"
 		]
 	},
 	"formatter": {
