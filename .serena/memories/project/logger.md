@@ -61,6 +61,27 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
   helper that tail-calls a level method loses its frame (README: give it a
   key). Measured Node 24: keyless past cap ~2.2 µs, keyed 17 ns, filtered
   ~6 ns, emitted json line ~0.8 µs.
+- One-shot options (spec `docs/superpowers/specs/2026-09-29-options-design.md`,
+  shipped in the feat/options merge): `L.options({ datetime })` on root and
+  scopes → full level methods (with spin/exec) plus `limit`/`once`.
+  `datetime` is the only overridable key (enabled/level would let a line
+  escape a logger switched off; color/format would mix styles in one
+  stream); a later flag is judged overridable or not one by one. Strict
+  validation at the `options()` call (`src/overrides.ts` `checkOptions`,
+  no imports): non-object/null/array, an own key other than `datetime`,
+  a non-boolean `datetime` → TypeError; stores a copy. The override is an
+  optional last parameter of `write`/`spin` (`overrides?.datetime ?? scope ??
+  root ?? false`), never state: a spinner re-reads datetime each frame, so
+  set-emit-restore would leak or lose it; for a spinner it is fixed at spin,
+  the fallback stays live. `OptionsView` (`src/options.ts`) builds level
+  methods through per-level prototype getters (a prototype function cannot
+  carry `.spin`: `this` would be the method). Chaining both orders
+  (`options().once()`, `once().options()`) builds one `LimitedView` carrying
+  `overrides`, plain call only; one `options()` per chain, closed by types
+  only (`PlainMethods`). No effect in json/logfmt (time always there).
+  Measured Node 24, plain `node` on dist/ (tsx inflates every closure
+  creation ~15×, do not benchmark through it): filtered options call
+  21.7 ns, emitted json line +21 ns.
 - Prefix: TTY badge centred on 9 columns, then a second badge ` <name> ` in
   the wth colours (black on lightgray), then `[date]` (Intl, runtime locale)
   in lightgray. Browser: `%c` badge (`padding: 1px 4px; border-radius: 4px`,
@@ -86,4 +107,9 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
 Known open points (from the final review, not fixed): `%`
 in a scope name is read as a specifier; Error loses own props like `code`
 in json/logfmt; the Symbol key has no version; verb (white on
-mediumpurple, 3.6:1) is repainted dark in VS Code's terminal.
+mediumpurple, 3.6:1) is repainted dark in VS Code's terminal. From the
+options review: `invalid datetime true` for the string "true" reads as
+valid, and an exotic value gets the engine's message; `OptionsView` is
+exported from `src/options.ts` for nothing; the level-method build
+(call/spin/exec) and the `limit(keyOrN, n)` dispatch are duplicated between
+`BaseLogger` and `OptionsView`.

@@ -7,8 +7,9 @@ goals drive every design choice: low overhead and a pleasant look.
 - ESM only (no CJS, no UMD); Node >= 22.3.0.
 - Public API (`src/index.ts`): `L` and `logger` (same root), `LEVELS`, and
   the types `Level`, `Format`, `Logger`, `RootLogger`, `Spinner`,
-  `SpinnerOptions`, `InitialSpinnerOptions`, `CloseOptions`, `Color`. `Logger` also
-  carries `limit` and `once`, whose view type is not exported. Nothing else is
+  `SpinnerOptions`, `InitialSpinnerOptions`, `CloseOptions`, `Color`, `LogOptions`.
+  `Logger` also carries `limit`, `once` and `options`, whose view types are not
+  exported. Nothing else is
   exported; the environment flags and `describeRuntime` (exported by
   0.0.1-alpha.0) are internal or gone. Architecture and decisions:
   `mem:project/logger`.
