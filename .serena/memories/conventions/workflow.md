@@ -1,7 +1,9 @@
 # Workflow
 
-- Every piece of work happens on a feat-branch, opened before its spec is
-  committed; the spec is committed on that branch.
+- Branching, closing and pushing are ruled by AGENTS.md § Git, which wins
+  over anything here; this memory only adds what AGENTS.md does not say.
+- The branch is opened before the spec is committed; the spec is committed on
+  that branch.
 - Never work in a git worktree: it disrupts the tooling, Serena first (its
   project, index and memories are bound to the main checkout).
 - Implementation runs in subagent mode by default
@@ -9,19 +11,15 @@
 - Once the user validates a plan, commit it and start executing it in
   subagent mode right away: no separate go is needed (user's standing
   instruction, 2026-09-29). Gates written into the plan itself still stop.
-- Before delivering a branch: `pnpm exec biome ci`, `pnpm typecheck`,
-  `pnpm build`, `pnpm lint:package`, `pnpm test`, `pnpm test:consumers` all
-  green.
-- A feat-branch is merged into `main` with `git merge --no-ff`, so the merge
-  commit marks where the piece of work starts and ends in the history. This
-  overrides `superpowers:finishing-a-development-branch`, whose plain
-  `git merge` fast-forwards when it can.
-- After the merge: update these Serena memories to match what shipped.
-- "Clôturer" (the user closing a piece of work) means, in this order and
-  without a further go: commit what is pending on the feat-branch, merge it
-  into `main` with `git merge --no-ff`, update these memories on `main` and
-  commit them there. It replaces the options menu of
-  `superpowers:finishing-a-development-branch`.
+- The checks AGENTS.md wants green before closing are, here:
+  `pnpm exec biome ci`, `pnpm typecheck`, `pnpm build`, `pnpm lint:package`,
+  `pnpm test`, `pnpm test:consumers`.
+- "Clôturer", said by the user, runs the closing sequence of AGENTS.md without
+  a further go: commit what is pending, checks green, memories updated and
+  committed on the branch, `git merge --no-ff` into `main`, branch deleted.
+  It replaces the options menu of
+  `superpowers:finishing-a-development-branch`, whose plain `git merge` would
+  fast-forward and lose the merge commit that marks the piece of work.
 - During a dedicated documentation pass, do not commit each edit: wording and
   verbosity usually take several back-and-forths. Commit once the user
   validates the pass.
