@@ -8,6 +8,7 @@ export const L: RootLogger = logger;
 
 export { LEVELS, type Level } from "./levels";
 export type { Logger, RootLogger } from "./logger";
+export type { LogOptions } from "./overrides";
 export type { Format } from "./renderers/select";
 export type {
 	CloseOptions,

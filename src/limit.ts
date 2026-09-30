@@ -1,12 +1,17 @@
 import { LEVEL_NAMES, LEVELS, type Level } from "./levels";
+import { checkOptions, type LogOptions } from "./overrides";
 
-export type LimitedMethods = { [L in Level]: (...args: unknown[]) => void };
+export type PlainMethods = { [L in Level]: (...args: unknown[]) => void };
+
+export type LimitedMethods = PlainMethods & {
+	options(options: LogOptions): PlainMethods;
+};
 
 export type KeyKind = "key" | "site";
 
 export interface LimitHost {
 	passes(severity: number): boolean;
-	write(level: Level, severity: number, args: unknown[]): void;
+	write(level: Level, severity: number, args: unknown[], overrides?: LogOptions): void;
 	admit(kind: KeyKind, key: string, n: number): boolean;
 }
 
@@ -103,12 +108,23 @@ class LimitedView {
 	readonly host: LimitHost;
 	readonly n: number;
 	readonly key: string | undefined;
+	readonly overrides: LogOptions | undefined;
 	site: string | undefined = undefined;
 
-	constructor(host: LimitHost, n: number, key: string | undefined) {
+	constructor(
+		host: LimitHost,
+		n: number,
+		key: string | undefined,
+		overrides: LogOptions | undefined,
+	) {
 		this.host = host;
 		this.n = n;
 		this.key = key;
+		this.overrides = overrides;
+	}
+
+	options(options: LogOptions): PlainMethods {
+		return createLimited(this.host, this.n, this.key, checkOptions(options));
 	}
 }
 
@@ -128,10 +144,15 @@ for (const level of LEVEL_NAMES) {
 			this.site ??= callSite();
 			if (this.site !== undefined && !host.admit("site", this.site, this.n)) return;
 		}
-		host.write(level, severity, args);
+		host.write(level, severity, args, this.overrides);
 	};
 }
 
-export function createLimited(host: LimitHost, n: number, key: string | undefined): LimitedMethods {
-	return new LimitedView(host, n, key) as unknown as LimitedMethods;
+export function createLimited(
+	host: LimitHost,
+	n: number,
+	key: string | undefined,
+	overrides: LogOptions | undefined,
+): LimitedMethods {
+	return new LimitedView(host, n, key, overrides) as unknown as LimitedMethods;
 }

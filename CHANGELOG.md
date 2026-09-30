@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `n` lines of their call site, or of every call sharing `key` across levels
   and scopes; calls filtered by `level` or `enabled` do not count. `L.once()`
   and `L.once(key)` do the same with `n = 1`.
+- `L.options({ datetime })`: level methods (with `spin` and `exec`) that
+  override `datetime` for the lines they emit, without changing the logger's
+  setting, on the root and scopes; any other key throws a `TypeError`.
+  Chains with `limit` and `once` in either order (`L.options(o).once()`,
+  `L.once().options(o)`), for the plain call only.
 
 ### Removed
 

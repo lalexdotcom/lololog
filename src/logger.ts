@@ -1,13 +1,9 @@
 import { isBrowser } from "./env/detect";
 import { isTTY, noColor } from "./env/tty";
 import { isLevel, LEVEL_NAMES, LEVELS, type Level } from "./levels";
-import {
-	checkLimit,
-	createLimited,
-	type KeyKind,
-	type LimitedMethods,
-	type LimitHost,
-} from "./limit";
+import { checkLimit, createLimited, type KeyKind, type LimitedMethods } from "./limit";
+import { createOptions, type OptionsHost, type OptionsMethods } from "./options";
+import { checkOptions, type LogOptions } from "./overrides";
 import type { Renderer, SpinnerView } from "./renderers/record";
 import { type Format, isFormat, selectRenderer } from "./renderers/select";
 import { consoleSink } from "./sinks/console";
@@ -24,12 +20,12 @@ import {
 	type SpinnerOrigin,
 } from "./spinner/spinner";
 
-type LevelMethod = ((...args: unknown[]) => void) & {
+export type LevelMethod = ((...args: unknown[]) => void) & {
 	spin(message: string, options?: InitialSpinnerOptions): Spinner;
 	exec<T>(message: string, task: Task<T>, options?: InitialSpinnerOptions): Promise<T>;
 };
 
-type LevelMethods = { [L in Level]: LevelMethod };
+export type LevelMethods = { [L in Level]: LevelMethod };
 
 export interface Logger extends LevelMethods {
 	enabled: boolean;
@@ -38,6 +34,7 @@ export interface Logger extends LevelMethods {
 	limit(n: number): LimitedMethods;
 	limit(key: string, n: number): LimitedMethods;
 	once(key?: string): LimitedMethods;
+	options(options: LogOptions): OptionsMethods;
 }
 
 export interface RootLogger extends Logger {
@@ -59,7 +56,7 @@ export interface Environment {
 const LIVE_PERIOD = 80;
 const LINE_PERIOD = 5000;
 
-abstract class BaseLogger implements LimitHost {
+abstract class BaseLogger implements OptionsHost {
 	#enabled = true;
 	#level: Level = "wth";
 	#threshold: number = LEVELS.wth;
@@ -125,25 +122,30 @@ abstract class BaseLogger implements LimitHost {
 	limit(key: string, n: number): LimitedMethods;
 	limit(keyOrN: string | number, n?: number): LimitedMethods {
 		return typeof keyOrN === "string"
-			? createLimited(this, checkLimit(n), keyOrN)
-			: createLimited(this, checkLimit(keyOrN), undefined);
+			? createLimited(this, checkLimit(n), keyOrN, undefined)
+			: createLimited(this, checkLimit(keyOrN), undefined, undefined);
 	}
 
 	once(key?: string): LimitedMethods {
-		return createLimited(this, 1, key);
+		return createLimited(this, 1, key, undefined);
+	}
+
+	options(options: LogOptions): OptionsMethods {
+		return createOptions(this, checkOptions(options));
 	}
 
 	abstract passes(severity: number): boolean;
 
 	abstract admit(kind: KeyKind, key: string, n: number): boolean;
 
-	abstract write(level: Level, severity: number, args: unknown[]): void;
+	abstract write(level: Level, severity: number, args: unknown[], overrides?: LogOptions): void;
 
 	abstract spin(
 		level: Level,
 		severity: number,
 		message: string,
 		options: InitialSpinnerOptions | undefined,
+		overrides?: LogOptions,
 	): Spinner;
 }
 
@@ -165,10 +167,15 @@ class ScopedLogger extends BaseLogger implements Logger {
 		return this.#root.admit(kind, key, n);
 	}
 
-	write(level: Level, severity: number, args: unknown[]): void {
+	write(level: Level, severity: number, args: unknown[], overrides?: LogOptions): void {
 		const root = this.#root;
 		if (!this.passes(severity)) return;
-		root.emit(level, this.#name, this.datetime ?? root.datetime ?? false, args);
+		root.emit(
+			level,
+			this.#name,
+			overrides?.datetime ?? this.datetime ?? root.datetime ?? false,
+			args,
+		);
 	}
 
 	spin(
@@ -176,13 +183,14 @@ class ScopedLogger extends BaseLogger implements Logger {
 		severity: number,
 		message: string,
 		options: InitialSpinnerOptions | undefined,
+		overrides?: LogOptions,
 	): Spinner {
 		const root = this.#root;
 		if (!this.passes(severity)) return NOOP_SPINNER;
 		const origin = {
 			level,
 			scope: this.#name,
-			datetime: () => this.datetime ?? root.datetime ?? false,
+			datetime: () => overrides?.datetime ?? this.datetime ?? root.datetime ?? false,
 		};
 		return root.startSpinner(origin, message, options);
 	}
@@ -266,9 +274,14 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 		severity: number,
 		message: string,
 		options: InitialSpinnerOptions | undefined,
+		overrides?: LogOptions,
 	): Spinner {
 		if (!this.passes(severity)) return NOOP_SPINNER;
-		const origin = { level, scope: undefined, datetime: () => this.datetime ?? false };
+		const origin = {
+			level,
+			scope: undefined,
+			datetime: () => overrides?.datetime ?? this.datetime ?? false,
+		};
 		return this.startSpinner(origin, message, options);
 	}
 
@@ -353,8 +366,9 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 		return true;
 	}
 
-	write(level: Level, severity: number, args: unknown[]): void {
-		if (this.passes(severity)) this.emit(level, undefined, this.datetime ?? false, args);
+	write(level: Level, severity: number, args: unknown[], overrides?: LogOptions): void {
+		if (this.passes(severity))
+			this.emit(level, undefined, overrides?.datetime ?? this.datetime ?? false, args);
 	}
 
 	emit(level: Level, scope: string | undefined, datetime: boolean, args: unknown[]): void {
