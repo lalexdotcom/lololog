@@ -56,3 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Package name reservation. Exposes the runtime environment flags (`isNode`,
   `isMainBrowser`, `isWebWorker`, `isBrowser`) only; no logger API yet.
+
+[Unreleased]: https://github.com/lalexdotcom/lololog/compare/v0.0.1-alpha.0...HEAD
+[0.0.1-alpha.0]: https://github.com/lalexdotcom/lololog/releases/tag/v0.0.1-alpha.0
