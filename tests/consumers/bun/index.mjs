@@ -6,15 +6,18 @@ L.format = "json";
 
 /** @type {unknown[]} */
 let messages = [];
-const log = console.log;
-console.log = (line) => messages.push(JSON.parse(String(line)).msg);
+const { write } = process.stdout;
+process.stdout.write = (line) => {
+	messages.push(JSON.parse(String(line)).msg);
+	return true;
+};
 
 /** @param {string} name @param {() => void} run @param {string[]} expected */
 function check(name, run, expected) {
 	messages = [];
 	run();
 	if (JSON.stringify(messages) !== JSON.stringify(expected)) {
-		console.log = log;
+		process.stdout.write = write;
 		throw new Error(
 			`${name}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(messages)}`,
 		);
@@ -49,7 +52,7 @@ const relay = (message) => L.once().warn(message);
 relay("relay");
 relay("relay");
 const relayed = messages.length;
-console.log = log;
+process.stdout.write = write;
 
 const hook = Error.prepareStackTrace;
 Error.prepareStackTrace = (_, sites) => sites;

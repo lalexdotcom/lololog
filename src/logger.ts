@@ -4,11 +4,14 @@ import { isLevel, LEVEL_NAMES, LEVELS, type Level } from "./levels";
 import { createLimited, type KeyKind, type LimitedMethods, limitView } from "./limit";
 import { createOptions, levelMethod, type OptionsHost, type OptionsMethods } from "./options";
 import { checkOptions, type LogOptions } from "./overrides";
+import { renderJson } from "./renderers/json";
+import { renderLogfmt } from "./renderers/logfmt";
 import type { Renderer, SpinnerView } from "./renderers/record";
 import { type Format, isFormat, selectRenderer } from "./renderers/select";
 import { consoleSink } from "./sinks/console";
 import { LiveSink } from "./sinks/live";
 import type { Sink } from "./sinks/sink";
+import { nodeOutput, type OutputStream, streamSink } from "./sinks/stream";
 import { nodeTerminal, type Terminal } from "./sinks/terminal";
 import type { Task } from "./spinner/exec";
 import {
@@ -49,6 +52,7 @@ export interface Environment {
 	tty: boolean;
 	noColor: boolean;
 	terminal?: Terminal;
+	output?: OutputStream;
 }
 
 // Periods when spinnerInterval is unset: a smooth animation in place, or a heartbeat line per
@@ -374,11 +378,11 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 	}
 
 	#pickSink(): Sink {
-		const { isBrowser, tty, terminal } = this.#environment;
-		const text = this.#format === undefined || this.#format === "pretty";
-		return terminal !== undefined && tty && !isBrowser && text
-			? new LiveSink(terminal, this.#color)
-			: consoleSink;
+		const { isBrowser, tty, terminal, output } = this.#environment;
+		if (isBrowser) return consoleSink;
+		const structured = this.#renderer === renderJson || this.#renderer === renderLogfmt;
+		if (structured) return output === undefined ? consoleSink : streamSink(output);
+		return terminal !== undefined && tty ? new LiveSink(terminal, this.#color) : consoleSink;
 	}
 
 	#reselect(): void {
@@ -391,7 +395,13 @@ class RootLoggerImpl extends BaseLogger implements RootLogger, SpinnerHost {
 }
 
 export function createRootLogger(
-	environment: Environment = { isBrowser, tty: isTTY, noColor, terminal: nodeTerminal() },
+	environment: Environment = {
+		isBrowser,
+		tty: isTTY,
+		noColor,
+		terminal: nodeTerminal(),
+		output: nodeOutput(),
+	},
 ): RootLogger {
 	return new RootLoggerImpl(environment);
 }

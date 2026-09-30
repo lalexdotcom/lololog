@@ -20,7 +20,9 @@ L.enabled = false; // silences the root and every scope
 
 In a terminal, each line starts with a coloured level badge; in browser
 devtools, with a styled badge. When stdout is not a terminal, lines are JSON
-by default; set `L.format` to `"logfmt"` or `"pretty"` to change it.
+by default; set `L.format` to `"logfmt"` or `"pretty"` to change it. On
+Node.js, `json` and `logfmt` lines are written with `process.stdout.write`,
+not `console.log`.
 
 Every level method can start a spinner:
 
