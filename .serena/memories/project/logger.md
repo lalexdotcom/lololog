@@ -75,7 +75,9 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
   set-emit-restore would leak or lose it; for a spinner it is fixed at spin,
   the fallback stays live. `OptionsView` (`src/options.ts`) builds level
   methods through per-level prototype getters (a prototype function cannot
-  carry `.spin`: `this` would be the method). Chaining both orders
+  carry `.spin`: `this` would be the method); `levelMethod(host, level,
+  severity, overrides)` builds the call/spin/exec trio for both the loggers
+  and the view, `limitView` the `limit(keyOrN, n)` dispatch. Chaining both orders
   (`options().once()`, `once().options()`) builds one `LimitedView` carrying
   `overrides`, plain call only; one `options()` per chain, closed by types
   only (`PlainMethods`). No effect in json/logfmt (time always there).
@@ -107,9 +109,4 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
 Known open points (from the final review, not fixed): `%`
 in a scope name is read as a specifier; Error loses own props like `code`
 in json/logfmt; the Symbol key has no version; verb (white on
-mediumpurple, 3.6:1) is repainted dark in VS Code's terminal. From the
-options review: `invalid datetime true` for the string "true" reads as
-valid, and an exotic value gets the engine's message; `OptionsView` is
-exported from `src/options.ts` for nothing; the level-method build
-(call/spin/exec) and the `limit(keyOrN, n)` dispatch are duplicated between
-`BaseLogger` and `OptionsView`.
+mediumpurple, 3.6:1) is repainted dark in VS Code's terminal.

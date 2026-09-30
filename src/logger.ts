@@ -1,8 +1,8 @@
 import { isBrowser } from "./env/detect";
 import { isTTY, noColor } from "./env/tty";
 import { isLevel, LEVEL_NAMES, LEVELS, type Level } from "./levels";
-import { checkLimit, createLimited, type KeyKind, type LimitedMethods } from "./limit";
-import { createOptions, type OptionsHost, type OptionsMethods } from "./options";
+import { createLimited, type KeyKind, type LimitedMethods, limitView } from "./limit";
+import { createOptions, levelMethod, type OptionsHost, type OptionsMethods } from "./options";
 import { checkOptions, type LogOptions } from "./overrides";
 import type { Renderer, SpinnerView } from "./renderers/record";
 import { type Format, isFormat, selectRenderer } from "./renderers/select";
@@ -10,7 +10,7 @@ import { consoleSink } from "./sinks/console";
 import { LiveSink } from "./sinks/live";
 import type { Sink } from "./sinks/sink";
 import { nodeTerminal, type Terminal } from "./sinks/terminal";
-import { exec, type Task } from "./spinner/exec";
+import type { Task } from "./spinner/exec";
 import {
 	type InitialSpinnerOptions,
 	NOOP_SPINNER,
@@ -79,13 +79,8 @@ abstract class BaseLogger implements OptionsHost {
 		// `promise.catch(L.error)` and `L.debug.spin` both need the method to know its logger. Not
 		// a Proxy either: its trap would run on every call, filtered ones included (~20 ns against
 		// ~0.3 ns measured).
-		for (const level of LEVEL_NAMES) {
-			const severity = LEVELS[level];
-			const method = ((...args: unknown[]) => this.write(level, severity, args)) as LevelMethod;
-			method.spin = (message, options) => this.spin(level, severity, message, options);
-			method.exec = (message, task, options) => exec(method.spin(message, options), task);
-			this[level] = method;
-		}
+		for (const level of LEVEL_NAMES)
+			this[level] = levelMethod(this, level, LEVELS[level], undefined);
 	}
 
 	get enabled(): boolean {
@@ -121,9 +116,7 @@ abstract class BaseLogger implements OptionsHost {
 	limit(n: number): LimitedMethods;
 	limit(key: string, n: number): LimitedMethods;
 	limit(keyOrN: string | number, n?: number): LimitedMethods {
-		return typeof keyOrN === "string"
-			? createLimited(this, checkLimit(n), keyOrN, undefined)
-			: createLimited(this, checkLimit(keyOrN), undefined, undefined);
+		return limitView(this, keyOrN, n, undefined);
 	}
 
 	once(key?: string): LimitedMethods {

@@ -156,3 +156,14 @@ export function createLimited(
 ): LimitedMethods {
 	return new LimitedView(host, n, key, overrides) as unknown as LimitedMethods;
 }
+
+export function limitView(
+	host: LimitHost,
+	keyOrN: string | number,
+	n: number | undefined,
+	overrides: LogOptions | undefined,
+): LimitedMethods {
+	return typeof keyOrN === "string"
+		? createLimited(host, checkLimit(n), keyOrN, overrides)
+		: createLimited(host, checkLimit(keyOrN), undefined, overrides);
+}

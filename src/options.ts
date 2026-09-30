@@ -1,5 +1,5 @@
 import { LEVEL_NAMES, LEVELS, type Level } from "./levels";
-import { checkLimit, createLimited, type LimitHost, type PlainMethods } from "./limit";
+import { createLimited, type LimitHost, limitView, type PlainMethods } from "./limit";
 import type { LevelMethod, LevelMethods } from "./logger";
 import type { LogOptions } from "./overrides";
 import { exec } from "./spinner/exec";
@@ -21,7 +21,7 @@ export interface OptionsHost extends LimitHost {
 	): Spinner;
 }
 
-export class OptionsView {
+class OptionsView {
 	readonly host: OptionsHost;
 	readonly overrides: LogOptions;
 
@@ -31,9 +31,7 @@ export class OptionsView {
 	}
 
 	limit(keyOrN: string | number, n?: number): PlainMethods {
-		return typeof keyOrN === "string"
-			? createLimited(this.host, checkLimit(n), keyOrN, this.overrides)
-			: createLimited(this.host, checkLimit(keyOrN), undefined, this.overrides);
+		return limitView(this.host, keyOrN, n, this.overrides);
 	}
 
 	once(key?: string): PlainMethods {
@@ -48,14 +46,22 @@ for (const level of LEVEL_NAMES) {
 	const severity = LEVELS[level];
 	Object.defineProperty(OptionsView.prototype, level, {
 		get(this: OptionsView): LevelMethod {
-			const { host, overrides } = this;
-			const method = ((...args: unknown[]) =>
-				host.write(level, severity, args, overrides)) as LevelMethod;
-			method.spin = (message, options) => host.spin(level, severity, message, options, overrides);
-			method.exec = (message, task, options) => exec(method.spin(message, options), task);
-			return method;
+			return levelMethod(this.host, level, severity, this.overrides);
 		},
 	});
+}
+
+export function levelMethod(
+	host: OptionsHost,
+	level: Level,
+	severity: number,
+	overrides: LogOptions | undefined,
+): LevelMethod {
+	const method = ((...args: unknown[]) =>
+		host.write(level, severity, args, overrides)) as LevelMethod;
+	method.spin = (message, options) => host.spin(level, severity, message, options, overrides);
+	method.exec = (message, task, options) => exec(method.spin(message, options), task);
+	return method;
 }
 
 export function createOptions(host: OptionsHost, overrides: LogOptions): OptionsMethods {

@@ -64,12 +64,25 @@ describe("checkOptions", () => {
 	});
 
 	test("rejects a datetime that is not a boolean", () => {
-		expect(() => checkOptions({ datetime: "yes" })).toThrow(
-			new TypeError("lololog: invalid datetime yes"),
+		expect(() => checkOptions({ datetime: "true" })).toThrow(
+			new TypeError('lololog: datetime must be a boolean, got "true"'),
 		);
 		expect(() => checkOptions({ datetime: 1 })).toThrow(
-			new TypeError("lololog: invalid datetime 1"),
+			new TypeError("lololog: datetime must be a boolean, got number"),
 		);
+	});
+
+	test("names the type of a datetime that cannot be turned into a string", () => {
+		const hostile = {
+			toString() {
+				throw new Error("no");
+			},
+		};
+		for (const datetime of [Object.create(null), hostile]) {
+			expect(() => checkOptions({ datetime })).toThrow(
+				new TypeError("lololog: datetime must be a boolean, got object"),
+			);
+		}
 	});
 });
 
