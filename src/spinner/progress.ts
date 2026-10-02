@@ -17,7 +17,7 @@ function clamp(value: number, max: number): number {
 	return value > 0 ? Math.min(value, max) : 0;
 }
 
-// undefined keeps the current unit (only when it was itself a count); null/"" clears it.
+// "" clears like null: kept, it would show nothing yet still reach JSON as "unit":"".
 function nextUnit(current: Progress, unit: string | null | undefined): string | undefined {
 	if (unit === undefined) return current.kind === "count" ? current.unit : undefined;
 	return unit || undefined;

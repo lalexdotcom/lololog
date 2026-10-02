@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Spinners: an optional `unit` for `{ done, total }` progress, shown right
+  after the total (`3/120MB`) and carried as `unit` in the json/logfmt
+  `spinner` field. An update without `unit` keeps the current one; `null`
+  removes it.
+
 ## [1.0.0-beta.1] - 2026-09-30
 
 ### Added
