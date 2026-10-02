@@ -61,6 +61,54 @@ describe("nextProgress", () => {
 			total: 4,
 		});
 	});
+
+	test("sets a unit", () => {
+		expect(nextProgress(NO_PROGRESS, { total: 120, unit: "MB" })).toEqual({
+			kind: "count",
+			done: 0,
+			total: 120,
+			unit: "MB",
+		});
+	});
+
+	test("keeps the current unit when an update carries none", () => {
+		const current = { kind: "count", done: 3, total: 120, unit: "MB" } as const;
+		expect(nextProgress(current, { done: 7, total: 120 })).toEqual({
+			kind: "count",
+			done: 7,
+			total: 120,
+			unit: "MB",
+		});
+	});
+
+	test("replaces the unit with another string", () => {
+		const current = { kind: "count", done: 3, total: 120, unit: "MB" } as const;
+		expect(nextProgress(current, { done: 7, total: 120, unit: "KB" })).toEqual({
+			kind: "count",
+			done: 7,
+			total: 120,
+			unit: "KB",
+		});
+	});
+
+	test("removes the unit on null or an empty string", () => {
+		const current = { kind: "count", done: 3, total: 120, unit: "MB" } as const;
+		expect(nextProgress(current, { done: 7, total: 120, unit: null })).toEqual({
+			kind: "count",
+			done: 7,
+			total: 120,
+		});
+		expect(nextProgress(current, { done: 7, total: 120, unit: "" })).toEqual({
+			kind: "count",
+			done: 7,
+			total: 120,
+		});
+	});
+
+	test("drops the unit when switching to a ratio", () => {
+		const current = { kind: "count", done: 3, total: 120, unit: "MB" } as const;
+		expect(nextProgress(current, { progress: 0.5 })).toEqual({ kind: "ratio", ratio: 0.5 });
+	});
 });
 
 describe("completed", () => {
@@ -72,6 +120,15 @@ describe("completed", () => {
 			total: 7,
 		});
 		expect(completed(NO_PROGRESS)).toBe(NO_PROGRESS);
+	});
+
+	test("keeps the unit", () => {
+		expect(completed({ kind: "count", done: 2, total: 7, unit: "MB" })).toEqual({
+			kind: "count",
+			done: 7,
+			total: 7,
+			unit: "MB",
+		});
 	});
 });
 
@@ -122,5 +179,14 @@ describe("progressLabel", () => {
 		expect(progressLabel({ kind: "count", done: 7, total: 120 }, true)).toBe("  7/120");
 		expect(progressLabel({ kind: "count", done: 7, total: 120 }, false)).toBe("7/120");
 		expect(progressLabel({ kind: "count", done: 0, total: 0 }, true)).toBe("0/0");
+	});
+
+	test("appends the unit right after total, with no space", () => {
+		expect(progressLabel({ kind: "count", done: 7, total: 120, unit: "MB" }, true)).toBe(
+			"  7/120MB",
+		);
+		expect(progressLabel({ kind: "count", done: 7, total: 120, unit: "MB" }, false)).toBe(
+			"7/120MB",
+		);
 	});
 });

@@ -34,6 +34,7 @@ export async function spinnerDemo(L: RootLogger, external?: () => void): Promise
 	const connect = db.debug.spin("Connecting");
 	const download = L.info.spin("Downloading assets", { progress: 0 });
 	const files = L.notice.spin("Processing files", { total: 120 });
+	const fetching = L.info.spin("Fetching archive", { total: 48, unit: "MB" });
 	const custom = L.verb.spin("Custom glyph", { glyph: "◐◓◑◒", color: "mediumpurple" });
 	const cache = L.warn.spin("Warming the cache");
 	const dated = L.options({ datetime: true }).info.spin("Dated spinner");
@@ -60,6 +61,8 @@ export async function spinnerDemo(L: RootLogger, external?: () => void): Promise
 		await sleep(250);
 		download.update({ progress: (step / 24) * 0.9 });
 		files.update({ done: step * 4, total: 120 });
+		// No unit: the MB given at spin stays.
+		fetching.update({ done: step * 2, total: 48 });
 		if (step === 6) connect.success("Connected");
 		if (step === 10) L.warn("an ordinary log between spinners");
 		if (step === 12) cache.fail("Cache unreachable");
@@ -68,6 +71,7 @@ export async function spinnerDemo(L: RootLogger, external?: () => void): Promise
 		if (step === 20) dated.success("Dated spinner done");
 	}
 	download.success();
+	fetching.success("Archive fetched");
 	files.fail("Processing failed", { done: 97, total: 120 });
 	await Promise.all([sync, migrate]);
 }

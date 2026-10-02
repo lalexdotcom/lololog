@@ -171,6 +171,30 @@ describe("update and heartbeat", () => {
 		});
 	});
 
+	test("keeps the unit when an update carries none, and removes it on null", () => {
+		const spinner = createRootLogger(PIPE).info.spin("a", { total: 10, unit: "MB" });
+		spinner.update({ done: 4, total: 10 });
+		spinner.update("b");
+		rs.advanceTimersByTime(5000);
+		expect(entries()[1].spinner).toEqual({
+			id: 1,
+			status: "running",
+			done: 4,
+			total: 10,
+			unit: "MB",
+		});
+		spinner.update({ done: 8, total: 10, unit: null });
+		spinner.update("c");
+		rs.advanceTimersByTime(5000);
+		expect(entries()[2].spinner).toEqual({ id: 1, status: "running", done: 8, total: 10 });
+	});
+
+	test("rejects a unit alongside a ratio", () => {
+		const spinner = createRootLogger(PIPE).info.spin("a");
+		// @ts-expect-error: unit is only valid with done/total
+		spinner.update({ progress: 0.5, unit: "MB" });
+	});
+
 	test("writes every spinner at every tick off a terminal, changed or not", () => {
 		const root = createRootLogger(PIPE);
 		root.info.spin("a");
@@ -197,6 +221,20 @@ describe("ending", () => {
 			{ msg: "b", spinner: { id: 2, status: "running", done: 0, total: 10 } },
 			{ msg: "b", spinner: { id: 2, status: "fail", done: 4, total: 10 } },
 		]);
+	});
+
+	test("success keeps the unit", () => {
+		const root = createRootLogger(PIPE);
+		const ok = root.info.spin("a", { total: 10, unit: "MB" });
+		ok.update({ done: 4, total: 10 });
+		ok.success("done");
+		expect(entries()[1].spinner).toEqual({
+			id: 1,
+			status: "success",
+			done: 10,
+			total: 10,
+			unit: "MB",
+		});
 	});
 
 	test("close takes a free status, closed by default, and never running", () => {

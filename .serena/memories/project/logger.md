@@ -39,7 +39,13 @@ plan: `docs/superpowers/plans/2026-09-25-logger-core.md`.
   on `exit` only: no signal listener, a user choice), and wraps
   stdout/stderr `write` while its zone is drawn so external output lands
   above. json/logfmt carry `spinner: {id, status, …}`, id = per-root
-  counter. Deliberately not handled: TERM=dumb, a partial write made before
+  counter. `{ done, total }` takes an optional `unit` (feat/spinner-unit
+  merge): label `done/total<unit>` with no space (tty pads `done` to the
+  numeric total only), `unit` field in json/logfmt only when set. Stored on
+  the `count` Progress; undefined keeps it, null or "" clears it (""
+  folded into null so JSON never carries `"unit":""`), a ratio drops it,
+  `completed()` keeps it; `{ progress, unit }` rejected by types.
+  Deliberately not handled: TERM=dumb, a partial write made before
   the zone exists, Ctrl+C leaving the cursor hidden.
 - `L.<level>.exec(message, task, options?)` (`src/spinner/exec.ts`, pure
   `exec(spinner, task)`; logger.ts only wires it to `method.spin`): task is
