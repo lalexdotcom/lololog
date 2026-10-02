@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-beta.2] - 2026-10-02
+
 ### Added
 
 - Spinners: an optional `unit` for `{ done, total }` progress, shown right
@@ -66,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package name reservation. Exposes the runtime environment flags (`isNode`,
   `isMainBrowser`, `isWebWorker`, `isBrowser`) only; no logger API yet.
 
-[Unreleased]: https://github.com/lalexdotcom/lololog/compare/v1.0.0-beta.1...HEAD
+[Unreleased]: https://github.com/lalexdotcom/lololog/compare/v1.0.0-beta.2...HEAD
+[1.0.0-beta.2]: https://github.com/lalexdotcom/lololog/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [1.0.0-beta.1]: https://github.com/lalexdotcom/lololog/compare/v0.0.1-alpha.0...v1.0.0-beta.1
 [0.0.1-alpha.0]: https://github.com/lalexdotcom/lololog/releases/tag/v0.0.1-alpha.0

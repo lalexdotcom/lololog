@@ -1,6 +1,6 @@
 {
 	"name": "lololog",
-	"version": "1.0.0-beta.1",
+	"version": "1.0.0-beta.2",
 	"description": "Universal logger: log everywhere with style and low overhead",
 	"keywords": [
 		"logger",
