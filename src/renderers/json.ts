@@ -10,6 +10,7 @@ export interface SpinnerField {
 	progress?: number;
 	done?: number;
 	total?: number;
+	unit?: string;
 }
 
 export interface Entry {
@@ -24,7 +25,10 @@ export interface Entry {
 
 function spinnerField({ id, status, progress }: SpinnerView): SpinnerField {
 	if (progress.kind === "ratio") return { id, status, progress: progress.ratio };
-	if (progress.kind === "count") return { id, status, done: progress.done, total: progress.total };
+	if (progress.kind === "count") {
+		const { done, total, unit } = progress;
+		return unit === undefined ? { id, status, done, total } : { id, status, done, total, unit };
+	}
 	return { id, status };
 }
 

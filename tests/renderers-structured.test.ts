@@ -151,9 +151,29 @@ describe("spinner field", () => {
 		expect(JSON.parse(String(line)).msg).toBe("100% %s %d %c");
 	});
 
+	test("json includes the unit when the count has one", () => {
+		const withUnit: SpinnerView = {
+			...running,
+			progress: { kind: "count", done: 7, total: 120, unit: "MB" },
+		};
+		expect(renderJson(spinning(withUnit))).toEqual([
+			'{"time":"2026-09-25T10:00:00.000Z","level":"warn","severity":13,"scope":"db","spinner":{"id":3,"status":"running","done":7,"total":120,"unit":"MB"},"msg":"load"}',
+		]);
+	});
+
 	test("logfmt writes it as one quoted JSON value", () => {
 		expect(renderLogfmt(spinning(running))).toEqual([
 			'time=2026-09-25T10:00:00.000Z level=warn severity=13 scope=db spinner="{\\"id\\":3,\\"status\\":\\"running\\",\\"done\\":7,\\"total\\":120}" msg=load',
+		]);
+	});
+
+	test("logfmt includes the unit when the count has one", () => {
+		const withUnit: SpinnerView = {
+			...running,
+			progress: { kind: "count", done: 7, total: 120, unit: "MB" },
+		};
+		expect(renderLogfmt(spinning(withUnit))).toEqual([
+			'time=2026-09-25T10:00:00.000Z level=warn severity=13 scope=db spinner="{\\"id\\":3,\\"status\\":\\"running\\",\\"done\\":7,\\"total\\":120,\\"unit\\":\\"MB\\"}" msg=load',
 		]);
 	});
 });

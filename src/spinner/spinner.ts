@@ -7,10 +7,10 @@ import { completed, NO_PROGRESS, nextProgress, type Progress } from "./progress"
 export type SpinnerStyle = { glyph?: string; color?: Color };
 
 type SpinnerProgress =
-	| { progress: number; done?: never; total?: never }
-	| { done: number; total: number; progress?: never };
+	| { progress: number; done?: never; total?: never; unit?: never }
+	| { done: number; total: number; progress?: never; unit?: string | null };
 
-type NoProgress = { progress?: never; done?: never; total?: never };
+type NoProgress = { progress?: never; done?: never; total?: never; unit?: never };
 
 // The never guards reject { progress, total }: excess-property checking on a non-discriminated
 // union accepts any key known to one of its members.
@@ -18,7 +18,7 @@ export type SpinnerOptions = SpinnerStyle & (SpinnerProgress | NoProgress);
 
 export type InitialSpinnerOptions =
 	| SpinnerOptions
-	| (SpinnerStyle & { total: number; progress?: never });
+	| (SpinnerStyle & { total: number; progress?: never; unit?: string | null });
 
 export type CloseOptions = SpinnerOptions & { status?: string };
 

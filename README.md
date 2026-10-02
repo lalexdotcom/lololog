@@ -27,10 +27,13 @@ not `console.log`.
 Every level method can start a spinner:
 
 ```ts
-const download = L.info.spin("Downloading", { total: files.length });
+const download = L.info.spin("Downloading", { total: files.length, unit: "MB" });
 download.update({ done: 3, total: files.length });
 download.success("Downloaded"); // or .fail(), or .close(message, { status: "skipped" })
 ```
+
+`unit` is appended to the `done/total` label with no space (`3/120MB`); an
+update without it keeps the current one, and `null` or `""` removes it.
 
 In a terminal with `pretty` output (the default), spinners stay at the bottom
 and animate in place every `L.spinnerInterval` milliseconds (80 by default)

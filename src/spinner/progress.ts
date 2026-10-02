@@ -1,12 +1,13 @@
 export type Progress =
 	| { kind: "none" }
 	| { kind: "ratio"; ratio: number }
-	| { kind: "count"; done: number; total: number };
+	| { kind: "count"; done: number; total: number; unit?: string };
 
 export interface ProgressInput {
 	progress?: number;
 	done?: number;
 	total?: number;
+	unit?: string | null;
 }
 
 export const NO_PROGRESS: Progress = Object.freeze({ kind: "none" });
@@ -16,10 +17,21 @@ function clamp(value: number, max: number): number {
 	return value > 0 ? Math.min(value, max) : 0;
 }
 
+// undefined keeps the current unit (only when it was itself a count); null/"" clears it.
+function nextUnit(current: Progress, unit: string | null | undefined): string | undefined {
+	if (unit === undefined) return current.kind === "count" ? current.unit : undefined;
+	return unit || undefined;
+}
+
 export function nextProgress(current: Progress, input: ProgressInput | undefined): Progress {
 	if (input?.total !== undefined) {
 		const total = Number.isFinite(input.total) && input.total > 0 ? input.total : 0;
-		return { kind: "count", done: clamp(input.done ?? 0, total), total };
+		return {
+			kind: "count",
+			done: clamp(input.done ?? 0, total),
+			total,
+			unit: nextUnit(current, input.unit),
+		};
 	}
 	if (input?.progress !== undefined) return { kind: "ratio", ratio: clamp(input.progress, 1) };
 	return current;
@@ -28,7 +40,7 @@ export function nextProgress(current: Progress, input: ProgressInput | undefined
 export function completed(progress: Progress): Progress {
 	if (progress.kind === "ratio") return { kind: "ratio", ratio: 1 };
 	if (progress.kind === "count")
-		return { kind: "count", done: progress.total, total: progress.total };
+		return { kind: "count", done: progress.total, total: progress.total, unit: progress.unit };
 	return progress;
 }
 
@@ -56,7 +68,7 @@ export function progressLabel(progress: Progress, pad: boolean): string {
 	if (progress.kind === "count") {
 		const done = String(progress.done);
 		const total = String(progress.total);
-		return `${pad ? done.padStart(total.length) : done}/${total}`;
+		return `${pad ? done.padStart(total.length) : done}/${total}${progress.unit ?? ""}`;
 	}
 	const value = String(percent(ratioOf(progress)));
 	return `${pad ? value.padStart(3) : value}%`;
